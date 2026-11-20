@@ -1,6 +1,6 @@
 # Scaffold SvelteKit app with SQLite and Drizzle
 
-Status: ready-for-agent
+Status: closed
 
 Set up the project per ADR-0004.
 
@@ -13,3 +13,7 @@ Set up the project per ADR-0004.
 - `npm run typecheck` runs `svelte-check` with no errors
 - Keep the existing `@ai-hero/sandcastle` dev dependency and the `.sandcastle/` folder
 - `.gitignore` covers `node_modules`, build output, and the data folder
+
+## Comments
+
+**RALPH (2026-11-20):** Scaffolded SvelteKit (TS) + SQLite via Drizzle per ADR-0004: adapter-node app, DATA_DIR-configured SQLite (default ./data, gitignored), drizzle-kit migrations applied via npm run db:migrate, Vitest with passing tests, svelte-check typecheck clean.

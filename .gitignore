@@ -1,1 +1,16 @@
 node_modules/
+
+# SvelteKit / Vite build output
+/.svelte-kit
+/build
+/package
+vite.config.ts.timestamp-*
+vite.config.js.timestamp-*
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Data folder (SQLite file + covers); backup = copy the folder
+/data
