@@ -1,6 +1,6 @@
 # Domain model: Book, Read, Quote, Note, and derived Reading Status
 
-Status: ready-for-agent
+Status: closed
 Blocked by: 01
 
 Schema plus a pure domain module the rest of the app uses. Build test-first.
@@ -26,3 +26,5 @@ Schema plus a pure domain module the rest of the app uses. Build test-first.
 - Logging an older Read retroactively turns later Reads into Rereads: **accepted**.
 - Moving a Reading Book back to Want to read unlinks Quotes/Notes from the deleted Read: **accepted**.
 - Deleting the only Finished Read drops the Book to Want to read while it keeps Quotes/Notes: **allowed, but with a warning** (see issue 06).
+
+**RALPH (2026-11-20):** Added schema for Book, Read, Quote, Note (Book-cascade delete; Read deletion set-nulls annotation links) with migration 0001, and a pure domain module src/lib/domain/reading.ts implementing readingStatus, isReread, canAnnotate, statusAfterDeleting and the start/finish/abandon/logPastFinished/revertToWantToRead operations, all test-first (32 tests).
