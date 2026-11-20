@@ -1,6 +1,6 @@
 # Reading, Want to read, Finished, and Abandoned lists
 
-Status: ready-for-agent
+Status: closed
 Blocked by: 02
 
 ## Acceptance criteria
@@ -11,3 +11,7 @@ Blocked by: 02
 - Finished: sorted by most recent finish date; shows rating, and a reread icon when the latest Finished Read is a Reread
 - Abandoned: shows the date abandoned
 - Empty states link to Add book
+
+## Comments
+
+**RALPH (2026-11-20):** Added the four Reading Status lists (Reading home, Want to read, Finished, Abandoned) with navigation, per-list details, covers, and empty states linking to Add book.
