@@ -1,7 +1,7 @@
 <script lang="ts">
-	import BookCard from '../../lib/components/BookCard.svelte';
-	import EmptyState from '../../lib/components/EmptyState.svelte';
-	import { formatDay, ratingStars } from '../../lib/format';
+	import BookCard from '#lib/components/BookCard.svelte';
+	import EmptyState from '#lib/components/EmptyState.svelte';
+	import { formatDay, ratingStars } from '#lib/format';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();

@@ -1,5 +1,5 @@
-import { db } from '../../lib/server/db';
-import { getLists } from '../../lib/server/lists';
+import { db } from '#lib/server/db';
+import { getLists } from '#lib/server/lists';
 import type { PageServerLoad } from './$types';
 
 /** Want to read: Books with no Reads, showing date added and "why". */

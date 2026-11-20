@@ -46,7 +46,12 @@ await run({
       // onSandboxReady runs once after the sandbox is initialised and the repo is
       // synced in, before the agent starts. Use it to install dependencies or run
       // any other setup steps your project needs.
-      onSandboxReady: [{ command: "npm install" }],
+      // node_modules is copied from the Windows host, so native addons must be
+      // rebuilt for Linux; npm install alone keeps the host's binary.
+      onSandboxReady: [
+        { command: "npm install" },
+        { command: "npm rebuild better-sqlite3" },
+      ],
     },
   },
 });

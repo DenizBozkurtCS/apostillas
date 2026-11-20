@@ -7,7 +7,10 @@ export default defineConfig({
 	plugins: [
 		sveltekit({
 			preprocess: vitePreprocess(),
-			adapter: adapter()
+			adapter: adapter(),
+			// SvelteKit 3 dropped `$lib`; this alias feeds both Vite and the
+			// generated tsconfig paths. Import shared code as `#lib/...`.
+			alias: { '#lib': 'src/lib' }
 		})
 	],
 	test: {

@@ -7,7 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { error } from '@sveltejs/kit';
-import { dataDir } from '../../../lib/server/paths';
+import { dataDir } from '#lib/server/paths';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = ({ params }) => {

@@ -1,9 +1,9 @@
 import path from 'node:path';
 import { fail, redirect } from '@sveltejs/kit';
-import { db } from '../../lib/server/db';
-import { dataDir } from '../../lib/server/paths';
-import { searchBooks, type BookSearchResult } from '../../lib/server/booksearch';
-import { addBook } from '../../lib/server/books';
+import { db } from '#lib/server/db';
+import { dataDir } from '#lib/server/paths';
+import { searchBooks, type BookSearchResult } from '#lib/server/booksearch';
+import { addBook } from '#lib/server/books';
 import type { Actions, PageServerLoad } from './$types';
 
 /** Run the search when `?q=` is present so the page is bookmarkable. */
