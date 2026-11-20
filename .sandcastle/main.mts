@@ -24,7 +24,9 @@ await run({
   // Maximum number of iterations (agent invocations) to run in a session.
   // Each iteration works on a single issue. Increase this to process more issues
   // per run, or set it to 1 for a single-shot mode.
-  maxIterations: 3,
+  // Kept at 1: sandcastle 0.14 reuses the temp branch name on iteration 2
+  // while iteration 1's worktree still holds it, so multi-iteration runs fail.
+  maxIterations: 1,
 
   // Branch strategy — merge-to-head creates a temporary branch for the agent
   // to work on, then merges the result back to HEAD when the run completes.

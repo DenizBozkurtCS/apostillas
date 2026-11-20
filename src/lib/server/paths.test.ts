@@ -4,7 +4,7 @@ import { DB_FILENAME, dbPath } from './paths';
 
 describe('dbPath', () => {
 	it('places the SQLite file inside the data folder', () => {
-		expect(dbPath('/tmp/example-data')).toBe(path.join('/tmp/example-data', DB_FILENAME));
+		expect(dbPath('/tmp/example-data')).toBe(path.join(path.resolve('/tmp/example-data'), DB_FILENAME));
 	});
 
 	it('resolves a relative data folder to an absolute path', () => {
