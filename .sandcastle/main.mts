@@ -48,9 +48,13 @@ await run({
       // any other setup steps your project needs.
       // node_modules is copied from the Windows host, so native addons must be
       // rebuilt for Linux; npm install alone keeps the host's binary.
+      // One hook, not two: sandcastle runs hooks concurrently, and the default
+      // hook timeout is 60s.
       onSandboxReady: [
-        { command: "npm install" },
-        { command: "npm rebuild better-sqlite3" },
+        {
+          command: "npm install && npm rebuild better-sqlite3",
+          timeoutMs: 300_000,
+        },
       ],
     },
   },
