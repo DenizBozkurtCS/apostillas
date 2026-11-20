@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reading Status prototype</title>
+<style>
+  :root {
+    --bg: #fbfaf7; --panel: #ffffff; --ink: #1d1b18; --muted: #6b665e; --line: #e6e1d8;
+    --accent: #8a3b12; --accent-soft: #f6ebe3; --bad: #a3221b; --bad-soft: #fbe9e7; --good: #2f6b33;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #171614; --panel: #201f1c; --ink: #ece8e1; --muted: #a39d93; --line: #35322d;
+      --accent: #e39a6c; --accent-soft: #3a2a20; --bad: #f08a80; --bad-soft: #3b201d; --good: #8cc792;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 28px 16px 60px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+  .proto { display: inline-block; font-size: 12px; font-weight: 600; color: var(--bad); background: var(--bad-soft); padding: 2px 8px; border-radius: 99px; margin-bottom: 10px; }
+  .intro { color: var(--muted); max-width: 760px; margin: 0 0 24px; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; margin-bottom: 20px; }
+  .status-row { display: flex; flex-wrap: wrap; gap: 24px; align-items: baseline; margin-bottom: 14px; }
+  .status { font-size: 26px; font-weight: 700; color: var(--accent); }
+  .kv { color: var(--muted); font-size: 13px; }
+  .kv b { color: var(--ink); font-weight: 600; }
+  .yes { color: var(--good); } .no { color: var(--bad); }
+  .flash { border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 14px; background: var(--accent-soft); }
+  .flash.err { background: var(--bad-soft); color: var(--bad); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; color: var(--muted); font-weight: 600; }
+  tr.changed td { background: var(--accent-soft); }
+  .empty { color: var(--muted); font-style: italic; font-size: 14px; }
+  .tag { font-size: 12px; padding: 1px 7px; border-radius: 99px; border: 1px solid var(--line); white-space: nowrap; }
+  .tag.reread { border-color: var(--accent); color: var(--accent); }
+  h3 { font-size: 14px; margin: 18px 0 8px; }
+  ul.ann { list-style: none; padding: 0; margin: 0; font-size: 14px; }
+  ul.ann li { padding: 6px 0; border-bottom: 1px solid var(--line); }
+  ul.ann .meta { color: var(--muted); font-size: 12px; }
+  button { font: inherit; font-size: 14px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 7px; padding: 7px 12px; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: var(--panel); border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.small { font-size: 12px; padding: 2px 8px; }
+  .actions { display: flex; flex-direction: column; gap: 10px; }
+  .action { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .action label { font-size: 13px; color: var(--muted); display: flex; gap: 4px; align-items: center; }
+  select { font: inherit; font-size: 13px; padding: 4px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .tabs button.active { background: var(--accent-soft); border-color: var(--accent); }
+  .scenario p { margin: 0 0 8px; font-size: 14px; }
+  .scenario .watch { color: var(--accent); }
+  ol.steps { padding-left: 20px; margin: 12px 0 0; }
+  ol.steps li { margin-bottom: 6px; }
+  ol.steps li.done button { text-decoration: line-through; }
+  .log { font-size: 13px; color: var(--muted); max-height: 220px; overflow: auto; }
+  .log div { padding: 3px 0; border-bottom: 1px dashed var(--line); }
+  .log .err { color: var(--bad); }
+</style>
+</head>
+<body>
+<main>
+  <span class="proto">PROTOTYPE · throwaway</span>
+  <h1>Reading Status: does the model feel right?</h1>
+  <p class="intro">
+    One Book, in memory. The <b>Reading Status</b> is never set directly. It is worked out from the Book's <b>Reads</b> (ADR-0005):
+    any open Read → <b>Reading</b>; otherwise any Finished Read → <b>Finished</b>; otherwise any Abandoned Read → <b>Abandoned</b>; no Reads → <b>Want to read</b>.
+    A Read is a <b>Reread</b> if an earlier Read was Finished, or you ticked "I've read this before". Quotes and Notes can't be added while the Book is Want to read.
+    Click the actions or step through a scenario and check that what happens matches what you'd expect.
+  </p>
+
+  <div class="grid">
+    <div>
+      <section class="panel" id="state"></section>
+      <section class="panel">
+        <h2>What happened</h2>
+        <div class="log" id="log"></div>
+      </section>
+    </div>
+    <div>
+      <section class="panel">
+        <h2>Scenarios</h2>
+        <div class="tabs" id="tabs"></div>
+        <div class="scenario" id="scenario"></div>
+      </section>
+      <section class="panel">
+        <h2>Free play</h2>
+        <div class="actions">
+          <div class="action"><button data-act="start">Start reading</button></div>
+          <div class="action">
+            <button data-act="finish">Finish</button>
+            <label>rating <select id="f-rating"><option value="">none</option><option>1</option><option>2</option><option>3</option><option>4</option><option selected>5</option></select></label>
+            <label><input type="checkbox" id="f-before"> I've read this before</label>
+          </div>
+          <div class="action"><button data-act="abandon">Abandon</button></div>
+          <div class="action"><button data-act="revert">Back to Want to read</button></div>
+          <div class="action">
+            <button data-act="logPast">Log a past read</button>
+            <label>finished <select id="p-ago"><option value="30">1 month ago</option><option value="365" selected>1 year ago</option><option value="1825">5 years ago</option></select></label>
+            <label><input type="checkbox" id="p-before"> I've read this before</label>
+          </div>
+          <div class="action"><button data-act="addQuote">Add a quote</button><button data-act="addNote">Add a note</button></div>
+          <div class="action"><button data-act="passMonth">A month passes</button><button data-act="reset">Reset to a new Book</button></div>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<!-- ============ Portable logic module: pure, no DOM. Lift this into src/lib/domain. ============ -->
+<script>
+const ReadingModel = (() => {
+  const START_DAY = Math.floor(Date.UTC(2026, 10, 20) / 86400000);
+
+  const initial = () => ({ today: START_DAY, nextId: 1, reads: [], quotes: [], notes: [] });
+
+  const openRead = (reads) => reads.find((r) => r.outcome === 'open') ?? null;
+
+  function readingStatus(reads) {
+    if (reads.some((r) => r.outcome === 'open')) return 'Reading';
+    if (reads.some((r) => r.outcome === 'finished')) return 'Finished';
+    if (reads.some((r) => r.outcome === 'abandoned')) return 'Abandoned';
+    return 'Want to read';
+  }
+
+  // Where a Read sits in time: its start, or its end for a logged past Read with no start.
+  const anchor = (r) => r.startDay ?? r.endDay;
+
+  function isReread(read, reads) {
+    if (read.readBefore) return true;
+    const a = anchor(read);
+    return reads.some((o) =>
+      o.id !== read.id && o.outcome === 'finished' &&
+      (o.endDay < a || (o.endDay === a && o.id < read.id)));
+  }
+
+  const canAnnotate = (status) => status !== 'Want to read';
+
+  const unlink = (items, readId) => items.map((x) => (x.readId === readId ? { ...x, readId: null, unlinked: true } : x));
+
+  // (state, action) => { state, error? }
+  function reduce(s, action) {
+    const open = openRead(s.reads);
+    const status = readingStatus(s.reads);
+    const id = s.nextId;
+    const next = { ...s, nextId: s.nextId + 1 };
+    switch (action.type) {
+      case 'start':
+        if (open) return { state: s, error: 'Refused: this Book already has an open Read. Finish, abandon, or go back to Want to read first.' };
+        return { state: { ...next, reads: [...s.reads, { id, startDay: s.today, endDay: null, outcome: 'open', rating: null, readBefore: false }] } };
+      case 'finish':
+      case 'abandon': {
+        if (!open) return { state: s, error: `Refused: nothing to ${action.type}. The Book has no open Read.` };
+        const outcome = action.type === 'finish' ? 'finished' : 'abandoned';
+        return { state: { ...s, reads: s.reads.map((r) => r.id === open.id
+          ? { ...r, outcome, endDay: s.today, rating: action.rating ?? null, readBefore: action.readBefore ?? r.readBefore } : r) } };
+      }
+      case 'logPast':
+        return { state: { ...next, reads: [...s.reads, { id, startDay: null, endDay: s.today - action.daysAgo, outcome: 'finished', rating: action.rating ?? null, readBefore: !!action.readBefore }] } };
+      case 'revert':
+        if (!open) return { state: s, error: 'Refused: only a Book that is Reading can go back to Want to read.' };
+        return { state: { ...s, reads: s.reads.filter((r) => r.id !== open.id), quotes: unlink(s.quotes, open.id), notes: unlink(s.notes, open.id) } };
+      case 'deleteRead':
+        return { state: { ...s, reads: s.reads.filter((r) => r.id !== action.id), quotes: unlink(s.quotes, action.id), notes: unlink(s.notes, action.id) } };
+      case 'addQuote':
+      case 'addNote': {
+        if (!canAnnotate(status)) return { state: s, error: 'Refused: Quotes and Notes can’t be added while the Book is Want to read.' };
+        const item = { id, text: action.text, day: s.today, readId: open ? open.id : null };
+        return action.type === 'addQuote'
+          ? { state: { ...next, quotes: [...s.quotes, item] } }
+          : { state: { ...next, notes: [...s.notes, item] } };
+      }
+      case 'passTime':
+        return { state: { ...s, today: s.today + action.days } };
+      case 'reset':
+        return { state: initial() };
+      default:
+        return { state: s, error: `Unknown action ${action.type}` };
+    }
+  }
+
+  return { initial, reduce, readingStatus, isReread, canAnnotate, openRead };
+})();
+</script>
+
+<!-- ============ Throwaway page shell ============ -->
+<script>
+const M = ReadingModel;
+let state = M.initial();
+let prev = state;
+let flash = null;
+let changedReadIds = new Set();
+const log = [];
+
+const QUOTES = ['"I must not fear."', '"The mystery of life isn’t a problem to solve."', '"Deep in the human unconscious…"', '"Without change something sleeps inside us."'];
+const NOTES = ['Slow first third, then it clicks.', 'Second time round the politics land harder.', 'Gave up: not in the mood for this right now.', 'Worth rereading every few years.'];
+let qi = 0, ni = 0;
+
+const fmt = (day) => day == null ? '—' : new Date(day * 86400000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+const OUTCOME = { open: 'In progress', finished: 'Finished', abandoned: 'Abandoned' };
+
+const LABELS = {
+  start: 'Start reading', finish: 'Finish', abandon: 'Abandon', revert: 'Back to Want to read', logPast: 'Log a past read',
+  deleteRead: 'Delete a Read', addQuote: 'Add a quote', addNote: 'Add a note', passTime: 'Time passes', reset: 'New Book',
+};
+
+function dispatch(action) {
+  if (action.type === 'addQuote') action.text ??= QUOTES[qi++ % QUOTES.length];
+  if (action.type === 'addNote') action.text ??= NOTES[ni++ % NOTES.length];
+  const before = state;
+  const res = M.reduce(state, action);
+  prev = before;
+  state = res.state;
+  const sBefore = M.readingStatus(before.reads), sAfter = M.readingStatus(state.reads);
+  // Highlight Reads that are new, edited, or whose Reread flag flipped because of another Read.
+  changedReadIds = new Set(state.reads.filter((r) => {
+    const o = before.reads.find((x) => x.id === r.id);
+    return !o || JSON.stringify(o) !== JSON.stringify(r) || M.isReread(o, before.reads) !== M.isReread(r, state.reads);
+  }).map((r) => r.id));
+  let msg;
+  if (res.error) msg = res.error;
+  else if (action.type === 'reset') msg = 'New Book, no Reads yet.';
+  else if (sBefore !== sAfter) msg = `${LABELS[action.type]}: status changed from ${sBefore} to ${sAfter}.`;
+  else msg = `${LABELS[action.type]}: status stays ${sAfter}.`;
+  flash = { msg, err: !!res.error };
+  log.unshift({ msg, err: !!res.error });
+  render();
+}
+
+function renderState() {
+  const status = M.readingStatus(state.reads);
+  const can = M.canAnnotate(status);
+  const readNo = (id) => state.reads.findIndex((r) => r.id === id) + 1;
+  const rows = state.reads.map((r, i) => `
+    <tr class="${changedReadIds.has(r.id) ? 'changed' : ''}">
+      <td>${i + 1}</td><td>${fmt(r.startDay)}</td><td>${fmt(r.endDay)}</td><td>${OUTCOME[r.outcome]}</td>
+      <td>${r.rating ? '★'.repeat(r.rating) : '—'}</td>
+      <td>${M.isReread(r, state.reads) ? `<span class="tag reread">↻ Reread${r.readBefore ? ' (ticked)' : ''}</span>` : ''}</td>
+      <td><button class="small" data-del="${r.id}">Delete</button></td>
+    </tr>`).join('');
+  const ann = (items, kind) => items.length ? `<ul class="ann">${items.map((x) => `<li>${x.text}<div class="meta">${kind} · ${fmt(x.day)} · ${
+    x.readId ? `linked to Read ${readNo(x.readId)}` : x.unlinked ? 'its Read was deleted, now on the Book only' : 'on the Book, no Read'}</div></li>`).join('')}</ul>` : `<div class="empty">None yet.</div>`;
+  document.getElementById('state').innerHTML = `
+    <h2>Current state</h2>
+    ${flash ? `<div class="flash ${flash.err ? 'err' : ''}">${flash.msg}</div>` : ''}
+    <div class="status-row">
+      <div><div class="kv">Reading Status</div><div class="status">${status}</div></div>
+      <div class="kv">Quotes &amp; Notes allowed: <b class="${can ? 'yes' : 'no'}">${can ? 'yes' : 'no'}</b></div>
+      <div class="kv">Today: <b>${fmt(state.today)}</b></div>
+    </div>
+    <h3>Reads</h3>
+    ${state.reads.length ? `<table><thead><tr><th>#</th><th>Started</th><th>Ended</th><th>Outcome</th><th>Rating</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="empty">No Reads, so the Book is Want to read.</div>'}
+    <h3>Quotes</h3>${ann(state.quotes, 'Quote')}
+    <h3>Notes</h3>${ann(state.notes, 'Note')}`;
+  document.querySelectorAll('[data-del]').forEach((b) => b.onclick = () => dispatch({ type: 'deleteRead', id: +b.dataset.del }));
+}
+
+function renderLog() {
+  document.getElementById('log').innerHTML = log.length ? log.map((l) => `<div class="${l.err ? 'err' : ''}">${l.msg}</div>`).join('') : '<div>Nothing yet.</div>';
+}
+
+// ---------- Free play ----------
+const val = (id) => document.getElementById(id);
+const FREE = {
+  start: () => ({ type: 'start' }),
+  finish: () => ({ type: 'finish', rating: val('f-rating').value ? +val('f-rating').value : null, readBefore: val('f-before').checked }),
+  abandon: () => ({ type: 'abandon' }),
+  revert: () => ({ type: 'revert' }),
+  logPast: () => ({ type: 'logPast', daysAgo: +val('p-ago').value, rating: null, readBefore: val('p-before').checked }),
+  addQuote: () => ({ type: 'addQuote' }),
+  addNote: () => ({ type: 'addNote' }),
+  passMonth: () => ({ type: 'passTime', days: 30 }),
+  reset: () => { log.length = 0; return { type: 'reset' }; },
+};
+document.querySelectorAll('[data-act]').forEach((b) => b.onclick = () => dispatch(FREE[b.dataset.act]()));
+
+// ---------- Guided scenarios ----------
+const S = (label, action) => ({ label, action });
+const SCENARIOS = [
+  { name: 'Happy path',
+    desc: 'Pick up a new Book, save a quote while reading, finish it.',
+    watch: 'The quote is linked to the Read. Status goes Want to read → Reading → Finished.',
+    steps: [S('Start reading', { type: 'start' }), S('Add a quote', { type: 'addQuote' }), S('A month passes', { type: 'passTime', days: 30 }), S('Finish with 5 stars', { type: 'finish', rating: 5 })] },
+  { name: 'Rereading',
+    desc: 'Finish a Book, then come back to it a year later.',
+    watch: 'Starting again moves it back to Reading. The second Read is marked Reread automatically.',
+    steps: [S('Start reading', { type: 'start' }), S('Finish with 4 stars', { type: 'finish', rating: 4 }),
+      S('A month passes', { type: 'passTime', days: 30 }), S('Start reading again', { type: 'start' }), S('Add a note', { type: 'addNote' }), S('Finish with 5 stars', { type: 'finish', rating: 5 })] },
+  { name: 'Abandoned reread',
+    desc: 'You finished it once, then gave up on a reread.',
+    watch: 'The Book stays Finished, not Abandoned, because having finished it once wins. Is that what you’d expect on your Finished list?',
+    steps: [S('Start reading', { type: 'start' }), S('Finish with 5 stars', { type: 'finish', rating: 5 }), S('A month passes', { type: 'passTime', days: 30 }),
+      S('Start reading again', { type: 'start' }), S('Abandon', { type: 'abandon' })] },
+  { name: 'Stopped early',
+    desc: 'Start a Book, save a quote, then decide it’s not the right time and move it back to Want to read.',
+    watch: 'The open Read is deleted. The quote stays on the Book but loses its Read link, and you can’t add new quotes until you start again.',
+    steps: [S('Start reading', { type: 'start' }), S('Add a quote', { type: 'addQuote' }), S('Back to Want to read', { type: 'revert' }),
+      S('Try to add another quote', { type: 'addQuote' }), S('Start reading again', { type: 'start' }), S('Add a quote', { type: 'addQuote' })] },
+  { name: 'Abandon, then resume',
+    desc: 'Give up on a Book, then pick it up again months later and finish it.',
+    watch: 'Resuming opens a new Read; the abandoned one stays in history. The finished Read is NOT a Reread, since you never finished it before.',
+    steps: [S('Start reading', { type: 'start' }), S('Abandon', { type: 'abandon' }), S('A month passes', { type: 'passTime', days: 30 }),
+      S('Start reading again', { type: 'start' }), S('Finish with 4 stars', { type: 'finish', rating: 4 })] },
+  { name: 'Logging out of order',
+    desc: 'Finish a Book today, then remember you also read it years ago and log that past read.',
+    watch: 'Today’s Read turns into a Reread after the fact, because the logged Read is earlier in time. Is that right, or should Reread only be what you said at the time?',
+    steps: [S('Start reading', { type: 'start' }), S('Finish with 4 stars', { type: 'finish', rating: 4 }), S('Log a read finished 5 years ago', { type: 'logPast', daysAgo: 1825 })] },
+  { name: 'Read before the app',
+    desc: 'You read this as a teenager but never logged it. Start and finish it now, ticking "I’ve read this before".',
+    watch: 'Only one Read exists, but it shows as Reread (ticked).',
+    steps: [S('Start reading', { type: 'start' }), S('Finish, ticking "I’ve read this before"', { type: 'finish', rating: 5, readBefore: true })] },
+  { name: 'Things that should be refused',
+    desc: 'Try actions that make no sense for the current status.',
+    watch: 'Each attempt is refused with a reason, and nothing changes.',
+    steps: [S('Add a quote to a Want to read Book', { type: 'addQuote' }), S('Finish without starting', { type: 'finish', rating: 3 }), S('Start reading', { type: 'start' }),
+      S('Start reading again while already reading', { type: 'start' }), S('Abandon', { type: 'abandon' }), S('Back to Want to read from Abandoned', { type: 'revert' })] },
+  { name: 'Deleting the only finished Read',
+    desc: 'Finish a Book with notes, then delete that Read (say you logged it by mistake).',
+    watch: 'The Book drops back to Want to read while still holding Quotes and Notes you can no longer add to. Acceptable, or should deleting be blocked?',
+    steps: [S('Start reading', { type: 'start' }), S('Add a note', { type: 'addNote' }), S('Finish with 3 stars', { type: 'finish', rating: 3 }),
+      S('Delete that Read', { type: 'deleteFirst' })] },
+];
+let active = 0, stepAt = 0;
+function startScenario(i) {
+  active = i; stepAt = 0; log.length = 0; qi = 0; ni = 0;
+  state = M.initial(); flash = { msg: `Scenario "${SCENARIOS[i].name}" ready: a new Book with no Reads.`, err: false }; changedReadIds = new Set();
+  render();
+}
+function renderScenario() {
+  document.getElementById('tabs').innerHTML = SCENARIOS.map((s, i) => `<button class="${i === active ? 'active' : ''}" data-tab="${i}">${s.name}</button>`).join('');
+  document.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => startScenario(+b.dataset.tab));
+  const sc = SCENARIOS[active];
+  document.getElementById('scenario').innerHTML = `
+    <p>${sc.desc}</p><p class="watch"><b>Watch for:</b> ${sc.watch}</p>
+    <ol class="steps">${sc.steps.map((st, i) => `<li class="${i < stepAt ? 'done' : ''}"><button class="${i === stepAt ? 'primary' : ''}" data-step="${i}" ${i !== stepAt ? 'disabled' : ''}>${st.label}</button></li>`).join('')}</ol>
+    ${stepAt >= sc.steps.length ? '<p style="margin-top:10px"><button data-tab-restart>Run again</button></p>' : ''}`;
+  document.querySelectorAll('[data-step]').forEach((b) => b.onclick = () => {
+    const st = sc.steps[+b.dataset.step];
+    stepAt++;
+    const a = st.action.type === 'deleteFirst' ? { type: 'deleteRead', id: state.reads[0]?.id } : { ...st.action };
+    dispatch(a);
+  });
+  const r = document.querySelector('[data-tab-restart]'); if (r) r.onclick = () => startScenario(active);
+}
+
+function render() { renderState(); renderLog(); renderScenario(); }
+startScenario(0);
+</script>
+</body>
+</html>
