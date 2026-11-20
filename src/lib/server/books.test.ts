@@ -8,7 +8,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { eq } from 'drizzle-orm';
 import * as schema from './db/schema';
 import { books, reads } from './db/schema';
-import { addBook } from './books';
+import { addBook, addBookManually } from './books';
 import type { BookSearchResult } from './booksearch';
 
 function testDb(): BetterSQLite3Database<typeof schema> {
@@ -118,5 +118,91 @@ describe('addBook', () => {
 		expect(created).toBe(true);
 		const row = db.select().from(books).where(eq(books.id, bookId)).get()!;
 		expect(row.coverPath).toBeNull();
+	});
+});
+
+describe('addBookManually', () => {
+	it('creates a Want to read Book from hand-entered fields and stores an uploaded cover', async () => {
+		const db = testDb();
+
+		const { bookId, created } = await addBookManually(
+			{ db, coversDir },
+			{
+				title: 'The Dispossessed',
+				authors: ['Ursula K. Le Guin'],
+				isbn: '0060512750',
+				pageCount: 387,
+				description: 'An ambiguous utopia.',
+				whyRecommended: 'A colleague',
+				cover: coverBytes
+			}
+		);
+
+		expect(created).toBe(true);
+		const row = db.select().from(books).where(eq(books.id, bookId)).get()!;
+		expect(row.title).toBe('The Dispossessed');
+		expect(JSON.parse(row.authors)).toEqual(['Ursula K. Le Guin']);
+		expect(row.isbn).toBe('0060512750');
+		expect(row.pageCount).toBe(387);
+		expect(row.description).toBe('An ambiguous utopia.');
+		expect(row.whyRecommended).toBe('A colleague');
+		// No work ID: it did not come from a search provider.
+		expect(row.workId).toBeNull();
+
+		// A new Book has no Reads, so it is Want to read (ADR-0005).
+		expect(db.select().from(reads).where(eq(reads.bookId, bookId)).all()).toEqual([]);
+
+		// The uploaded cover was stored in the data folder and recorded.
+		expect(row.coverPath).toBeTruthy();
+		const onDisk = path.join(tmpDir, row.coverPath!);
+		expect(fs.existsSync(onDisk)).toBe(true);
+		expect(new Uint8Array(fs.readFileSync(onDisk))).toEqual(coverBytes);
+	});
+
+	it('opens the existing Book on a case-insensitive title + author match instead of duplicating', async () => {
+		const db = testDb();
+
+		const first = await addBookManually(
+			{ db, coversDir },
+			{ title: 'Dune', authors: ['Frank Herbert'] }
+		);
+		const second = await addBookManually(
+			{ db, coversDir },
+			{ title: '  dune ', authors: ['frank  herbert'] }
+		);
+
+		expect(second.created).toBe(false);
+		expect(second.bookId).toBe(first.bookId);
+		expect(db.select().from(books).all()).toHaveLength(1);
+	});
+
+	it('treats a different author as a different Book', async () => {
+		const db = testDb();
+
+		const first = await addBookManually(
+			{ db, coversDir },
+			{ title: 'Selected Poems', authors: ['Mary Oliver'] }
+		);
+		const second = await addBookManually(
+			{ db, coversDir },
+			{ title: 'Selected Poems', authors: ['Rainer Maria Rilke'] }
+		);
+
+		expect(second.created).toBe(true);
+		expect(second.bookId).not.toBe(first.bookId);
+		expect(db.select().from(books).all()).toHaveLength(2);
+	});
+
+	it('creates the Book without a cover when none is uploaded', async () => {
+		const db = testDb();
+
+		const { bookId } = await addBookManually(
+			{ db, coversDir },
+			{ title: 'Untitled', authors: [] }
+		);
+
+		const row = db.select().from(books).where(eq(books.id, bookId)).get()!;
+		expect(row.coverPath).toBeNull();
+		expect(JSON.parse(row.authors)).toEqual([]);
 	});
 });

@@ -82,6 +82,92 @@ export async function addBook(deps: AddBookDeps, input: AddBookInput): Promise<A
 	return { bookId, created: true };
 }
 
+/** Fields a reader can enter by hand when no search result fits (ADR-0003). */
+export interface ManualBookInput {
+	title: string;
+	/** Author names, in order; may be empty. */
+	authors: string[];
+	isbn?: string | null;
+	pageCount?: number | null;
+	description?: string | null;
+	/** Optional free-text "why / recommended by". */
+	whyRecommended?: string | null;
+	/** Raw bytes of an uploaded cover image, if any. */
+	cover?: Uint8Array | null;
+}
+
+/**
+ * Add a Book the reader typed in by hand. A match on case-insensitive title +
+ * author opens the existing Book instead of creating a duplicate
+ * (`created: false`). An uploaded cover is stored in {@link AddBookDeps.coversDir}.
+ * Manual Books have no Open Library work ID.
+ */
+export function addBookManually(deps: AddBookDeps, input: ManualBookInput): AddBookResult {
+	const { db } = deps;
+	const title = input.title.trim();
+	const authors = input.authors.map((a) => a.trim()).filter((a) => a !== '');
+
+	const key = dedupeKey(title, authors);
+	const existing = db
+		.select({ id: books.id, title: books.title, authors: books.authors })
+		.from(books)
+		.all();
+	for (const row of existing) {
+		if (dedupeKey(row.title, parseAuthors(row.authors)) === key) {
+			return { bookId: row.id, created: false };
+		}
+	}
+
+	const why = input.whyRecommended?.trim();
+	const isbn = input.isbn?.trim();
+	const inserted = db
+		.insert(books)
+		.values({
+			title,
+			authors: JSON.stringify(authors),
+			description: input.description?.trim() ?? '',
+			whyRecommended: why ? why : null,
+			isbn: isbn ? isbn : null,
+			pageCount: input.pageCount ?? null
+		})
+		.returning({ id: books.id })
+		.get();
+	const bookId = inserted.id;
+
+	if (input.cover && input.cover.length > 0) {
+		const coverPath = writeCover(deps.coversDir, bookId, input.cover);
+		db.update(books).set({ coverPath }).where(eq(books.id, bookId)).run();
+	}
+
+	return { bookId, created: true };
+}
+
+/** Parse the JSON author array stored on a Book, tolerating bad data. */
+function parseAuthors(json: string): string[] {
+	try {
+		const parsed = JSON.parse(json);
+		if (Array.isArray(parsed)) return parsed.filter((a): a is string => typeof a === 'string');
+	} catch {
+		// Fall through to an empty list.
+	}
+	return [];
+}
+
+/**
+ * A normalised key for duplicate detection: case-insensitive, whitespace- and
+ * order-insensitive across the title and its authors.
+ */
+function dedupeKey(title: string, authors: string[]): string {
+	const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+	const t = norm(title);
+	const a = authors
+		.map(norm)
+		.filter((x) => x !== '')
+		.sort()
+		.join('|');
+	return `${t}::${a}`;
+}
+
 /**
  * Download a cover into the covers folder, named by Book id. Returns the path
  * relative to the data folder (e.g. `covers/5.jpg`) to store on the Book, or
@@ -98,11 +184,19 @@ async function downloadCover(
 		if (!res.ok) return null;
 		const bytes = Buffer.from(await res.arrayBuffer());
 		if (bytes.length === 0) return null;
-		fs.mkdirSync(deps.coversDir, { recursive: true });
-		const fileName = `${bookId}.jpg`;
-		fs.writeFileSync(path.join(deps.coversDir, fileName), bytes);
-		return path.posix.join('covers', fileName);
+		return writeCover(deps.coversDir, bookId, bytes);
 	} catch {
 		return null;
 	}
+}
+
+/**
+ * Store cover bytes in the covers folder, named by Book id, and return the path
+ * relative to the data folder (e.g. `covers/5.jpg`) to record on the Book.
+ */
+function writeCover(coversDir: string, bookId: number, bytes: Uint8Array): string {
+	fs.mkdirSync(coversDir, { recursive: true });
+	const fileName = `${bookId}.jpg`;
+	fs.writeFileSync(path.join(coversDir, fileName), bytes);
+	return path.posix.join('covers', fileName);
 }

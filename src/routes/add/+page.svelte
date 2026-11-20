@@ -1,7 +1,13 @@
 <script lang="ts">
-	import type { PageData } from './$types';
+	import type { ActionData, PageData } from './$types';
 
-	let { data }: { data: PageData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	// Suggest hand entry when a search ran but found nothing, or after a failed
+	// manual submission, so the open form is not lost.
+	const suggestManual = $derived(
+		(data.searched && data.results.length === 0) || Boolean(form?.manual)
+	);
 </script>
 
 <svelte:head>
@@ -67,6 +73,54 @@
 	{/if}
 {/if}
 
+<details class="manual" open={suggestManual}>
+	<summary>Add a book by hand</summary>
+
+	<form method="POST" action="?/manual" enctype="multipart/form-data" class="manual-form">
+		{#if form?.manual?.error}
+			<p class="error" role="alert">{form.manual.error}</p>
+		{/if}
+
+		<label>
+			<span>Title</span>
+			<input name="title" type="text" required />
+		</label>
+
+		<label>
+			<span>Author(s), separated by commas</span>
+			<input name="authors" type="text" placeholder="e.g. Ursula K. Le Guin" />
+		</label>
+
+		<div class="row">
+			<label>
+				<span>ISBN (optional)</span>
+				<input name="isbn" type="text" />
+			</label>
+			<label>
+				<span>Page count (optional)</span>
+				<input name="pageCount" type="number" min="1" />
+			</label>
+		</div>
+
+		<label>
+			<span>Description (optional)</span>
+			<textarea name="description" rows="3"></textarea>
+		</label>
+
+		<label>
+			<span>Why / recommended by (optional)</span>
+			<input name="whyRecommended" type="text" />
+		</label>
+
+		<label>
+			<span>Cover image (optional)</span>
+			<input name="cover" type="file" accept="image/*" />
+		</label>
+
+		<button type="submit">Add to Want to read</button>
+	</form>
+</details>
+
 <style>
 	.search {
 		display: flex;
@@ -119,5 +173,40 @@
 	}
 	.empty {
 		color: #555;
+	}
+	.manual {
+		margin-top: 2rem;
+		border-top: 1px solid #ddd;
+		padding-top: 1rem;
+	}
+	.manual summary {
+		cursor: pointer;
+		font-weight: 600;
+	}
+	.manual-form {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		max-width: 32rem;
+		margin-top: 1rem;
+	}
+	.manual-form label {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+	.manual-form .row {
+		display: flex;
+		gap: 0.75rem;
+	}
+	.manual-form .row label {
+		flex: 1;
+	}
+	.manual-form .error {
+		color: #b00020;
+		margin: 0;
+	}
+	.manual-form button {
+		align-self: flex-start;
 	}
 </style>
