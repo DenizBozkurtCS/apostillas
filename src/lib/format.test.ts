@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deleteReadMessage, formatDay, ratingStars } from './format';
+import { deleteReadMessage, formatDay, formatRating, RATING_STEPS } from './format';
 
 describe('formatDay', () => {
 	it('returns an empty string for null, undefined, or empty', () => {
@@ -21,21 +21,21 @@ describe('formatDay', () => {
 	});
 });
 
-describe('ratingStars', () => {
+describe('formatRating', () => {
 	it('is empty when unrated', () => {
-		expect(ratingStars(null)).toBe('');
-		expect(ratingStars(undefined)).toBe('');
+		expect(formatRating(null)).toBe('');
+		expect(formatRating(undefined)).toBe('');
 	});
 
-	it('shows filled then empty stars out of five', () => {
-		expect(ratingStars(4)).toBe('★★★★☆');
-		expect(ratingStars(5)).toBe('★★★★★');
-		expect(ratingStars(1)).toBe('★☆☆☆☆');
+	it('writes whole and half ratings', () => {
+		expect(formatRating(5)).toBe('5');
+		expect(formatRating(4.5)).toBe('4½');
+		expect(formatRating(1)).toBe('1');
+		expect(formatRating(0.5)).toBe('½');
 	});
 
-	it('clamps out-of-range values', () => {
-		expect(ratingStars(9)).toBe('★★★★★');
-		expect(ratingStars(0)).toBe('☆☆☆☆☆');
+	it('lists every half step from ½ to 5', () => {
+		expect(RATING_STEPS.map(formatRating)).toEqual(['½', '1', '1½', '2', '2½', '3', '3½', '4', '4½', '5']);
 	});
 });
 

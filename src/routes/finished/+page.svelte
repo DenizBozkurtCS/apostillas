@@ -1,7 +1,8 @@
 <script lang="ts">
 	import BookCard from '#lib/components/BookCard.svelte';
 	import EmptyState from '#lib/components/EmptyState.svelte';
-	import { formatDay, ratingStars } from '#lib/format';
+	import { formatDay } from '#lib/format';
+	import Stars from '#lib/components/Stars.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -26,13 +27,13 @@
 			>
 				{#snippet detail()}
 					<span class="finished">
-						Finished {formatDay(item.finishDate)}
+						Finished{#if item.finishDate}&nbsp;{formatDay(item.finishDate)}{/if}
 						{#if item.isReread}
 							<span class="reread" title="Reread">↻ Reread</span>
 						{/if}
 					</span>
 					{#if item.rating != null}
-						<span class="rating" title={`${item.rating} out of 5`}>{ratingStars(item.rating)}</span>
+						<span class="rating"><Stars rating={item.rating} /></span>
 					{/if}
 				{/snippet}
 			</BookCard>
@@ -61,7 +62,5 @@
 	}
 	.rating {
 		display: block;
-		color: #b8860b;
-		letter-spacing: 1px;
 	}
 </style>

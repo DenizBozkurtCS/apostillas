@@ -11,7 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { and, eq, sql } from 'drizzle-orm';
-import type { Mutation, Read } from '../domain/reading';
+import { isValidRating, logPastFinished, start, type Mutation, type Read } from '../domain/reading';
 import type { Db } from './books';
 import { parseAuthors } from './books';
 import { books, notes, quotes, reads } from './db/schema';
@@ -102,6 +102,54 @@ export function applyReadMutation(db: Db, bookId: number, mutation: Mutation): v
 			db.delete(reads).where(and(eq(reads.id, mutation.id), eq(reads.bookId, bookId))).run();
 			return;
 	}
+}
+
+/** Which Reading Status a Book should land in when it is added. */
+export type AddAs = 'want' | 'reading' | 'finished';
+
+/** How the reader chose to add a Book: its starting status and, for Finished, a rating. */
+export interface AddChoice {
+	addAs: AddAs;
+	rating: number | null;
+}
+
+/**
+ * Read the add choice from an Add book form. Clicking a star sends `rating`
+ * (½–5), which means "read it, with this rating"; otherwise `addAs` names
+ * the status. Anything unexpected means Want to read.
+ */
+export function parseAddChoice(form: FormData): AddChoice {
+	const rating = Number(form.get('rating'));
+	if (isValidRating(rating)) {
+		return { addAs: 'finished', rating };
+	}
+	const addAs = form.get('addAs');
+	return { addAs: addAs === 'reading' || addAs === 'finished' ? addAs : 'want', rating: null };
+}
+
+/** Today as an ISO day (`YYYY-MM-DD`) in the server's local time. */
+export function todayISO(): string {
+	const now = new Date();
+	const pad = (n: number) => String(n).padStart(2, '0');
+	return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/**
+ * Give a just-added Book (which has no Reads) its starting Reading Status:
+ * Reading starts a Read today, Finished logs a Finished Read ending today, and
+ * Want to read adds nothing. Dates and rating can be edited on the Book page.
+ */
+export function setInitialStatus(
+	db: Db,
+	bookId: number,
+	addAs: AddAs,
+	today: string,
+	rating: number | null = null
+): void {
+	if (addAs === 'want') return;
+	const op =
+		addAs === 'reading' ? start([], today) : logPastFinished([], { endDate: today, rating });
+	if (op.ok) applyReadMutation(db, bookId, op.mutation);
 }
 
 /** The editable metadata of a Book (title, authors, Edition fields, "why"). */

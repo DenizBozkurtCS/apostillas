@@ -47,7 +47,7 @@ export interface WantToReadItem extends BaseItem {
 export interface FinishedItem extends BaseItem {
 	/** End date of the most recent Finished Read. */
 	finishDate: string | null;
-	/** Rating of the most recent Finished Read, 1–5 or null. */
+	/** Rating of the most recent Finished Read, ½–5 or null. */
 	rating: number | null;
 	/** Whether that most recent Finished Read is a Reread. */
 	isReread: boolean;

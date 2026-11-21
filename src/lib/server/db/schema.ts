@@ -43,7 +43,7 @@ export const reads = sqliteTable('reads', {
 	startDate: text('start_date'),
 	endDate: text('end_date'),
 	outcome: text('outcome', { enum: ['open', 'finished', 'abandoned'] }).notNull(),
-	/** 1–5, or null. */
+	/** ½ to 5 in half-star steps, or null. SQLite keeps 4.5 as a REAL in this INTEGER column. */
 	rating: integer('rating'),
 	/** The reader ticked "I've read this before". */
 	readBefore: integer('read_before', { mode: 'boolean' }).notNull().default(false),

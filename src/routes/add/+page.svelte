@@ -1,7 +1,11 @@
 <script lang="ts">
+	import { formatRating, RATING_STEPS } from '#lib/format';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	// Star buttons, highest first; CSS reverses them so ½ shows on the left.
+	const STARS_HIGH_TO_LOW = [...RATING_STEPS].reverse();
 
 	// Suggest hand entry when a search ran but found nothing, or after a failed
 	// manual submission, so the open form is not lost.
@@ -32,6 +36,16 @@
 			{#each data.results as result (result.source + (result.workId ?? '') + result.title)}
 				<li>
 					<form method="POST" action="?/add" class="result">
+						<!-- Enter in a text field presses the form's first button: keep that
+						     "Want to read", not the 5-star button that follows. -->
+						<button
+							type="submit"
+							name="addAs"
+							value="want"
+							class="enter-default"
+							tabindex="-1"
+							aria-hidden="true">Add to Want to read</button
+						>
 						{#if result.coverUrl}
 							<img class="cover" src={result.coverUrl} alt="" width="60" />
 						{:else}
@@ -39,7 +53,26 @@
 						{/if}
 
 						<div class="meta">
-							<strong>{result.title}</strong>
+							<div class="title-row">
+								<strong>{result.title}</strong>
+								<!-- Clicking a star adds the Book as read with that rating. Each star
+								     is two buttons, its left half (n−½) and right half (n). They are
+								     rendered 5→½ and reversed visually, so hover fills everything to
+								     the left of the pointer. -->
+								<span class="stars" role="group" aria-label="Read it? Rate it">
+									{#each STARS_HIGH_TO_LOW as n (n)}
+										<button
+											type="submit"
+											name="rating"
+											value={n}
+											class={Number.isInteger(n) ? 'half-right' : 'half-left'}
+											title={`Read it: ${formatRating(n)} of 5`}
+											aria-label={`Read it, rated ${formatRating(n)} of 5`}
+											><span aria-hidden="true">★</span></button
+										>
+									{/each}
+								</span>
+							</div>
 							<span class="byline">
 								{result.authors.join(', ') || 'Unknown author'}
 								{#if result.firstPublishYear}· {result.firstPublishYear}{/if}
@@ -65,7 +98,11 @@
 						<input type="hidden" name="pageCount" value={result.pageCount ?? ''} />
 						<input type="hidden" name="description" value={result.description} />
 
-						<button type="submit">Add to Want to read</button>
+						<div class="add-as" role="group" aria-label="Add to">
+							<button type="submit" name="addAs" value="want">Add to Want to read</button>
+							<button type="submit" name="addAs" value="reading">Reading</button>
+							<button type="submit" name="addAs" value="finished">Read it</button>
+						</div>
 					</form>
 				</li>
 			{/each}
@@ -117,11 +154,70 @@
 			<input name="cover" type="file" accept="image/jpeg,image/png,image/gif,image/webp" />
 		</label>
 
-		<button type="submit">Add to Want to read</button>
+		<div class="add-as" role="group" aria-label="Add to">
+			<button type="submit" name="addAs" value="want">Add to Want to read</button>
+			<button type="submit" name="addAs" value="reading">Reading</button>
+			<button type="submit" name="addAs" value="finished">Read it</button>
+		</div>
 	</form>
 </details>
 
 <style>
+	.enter-default {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+		border: 0;
+		padding: 0;
+	}
+	.title-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.25rem 0.75rem;
+	}
+	.stars {
+		display: inline-flex;
+		flex-direction: row-reverse;
+	}
+	/* Each button shows one half of a 1em-wide star glyph. */
+	.stars button {
+		background: none;
+		border: none;
+		padding: 0;
+		width: 0.5em;
+		overflow: hidden;
+		font-size: 1.4rem;
+		line-height: 1;
+		color: #c8c8c8;
+		cursor: pointer;
+	}
+	.stars button span {
+		display: inline-block;
+		width: 1em;
+		text-align: center;
+	}
+	.stars .half-right {
+		margin-right: 0.1em;
+	}
+	.stars .half-right span {
+		margin-left: -0.5em;
+	}
+	/* Hovering or focusing a half lights it and everything to its left. */
+	.stars button:hover,
+	.stars button:hover ~ button,
+	.stars button:focus-visible,
+	.stars button:focus-visible ~ button {
+		color: #e0a800;
+	}
+	.add-as {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
 	.search {
 		display: flex;
 		gap: 0.5rem;

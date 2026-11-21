@@ -10,6 +10,7 @@ import {
 	setBookCoverFromBytes,
 	setBookCoverFromUrl,
 	syncBookMetadata,
+	todayISO,
 	updateBookMetadata,
 	type BookDetail
 } from '#lib/server/book';
@@ -40,13 +41,6 @@ import {
 } from '#lib/server/annotations';
 import { deleteReadMessage } from '#lib/format';
 import type { Actions, PageServerLoad } from './$types';
-
-/** Today as an ISO day (`YYYY-MM-DD`) in the server's local time. */
-function todayISO(): string {
-	const now = new Date();
-	const pad = (n: number) => String(n).padStart(2, '0');
-	return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-}
 
 function parseId(raw: string): number {
 	const id = Number(raw);

@@ -13,7 +13,9 @@ import {
 	deleteBook,
 	loadBookDetail,
 	setBookCoverFromBytes,
+	parseAddChoice,
 	setBookCoverFromUrl,
+	setInitialStatus,
 	syncBookMetadata,
 	updateBookMetadata
 } from './book';
@@ -315,5 +317,76 @@ describe('syncBookMetadata', () => {
 		const id = seedBook(db, { workId: '/works/OL45883W', title: 'Mine' });
 		expect(await syncBookMetadata(db, id, async () => null)).toBe('unavailable');
 		expect(db.select().from(books).where(eq(books.id, id)).get()!.title).toBe('Mine');
+	});
+});
+
+describe('setInitialStatus', () => {
+	it('leaves a Book added to Want to read without Reads', () => {
+		const db = testDb();
+		const id = seedBook(db);
+		setInitialStatus(db, id, 'want', '2026-11-21');
+		expect(loadBookDetail(db, id)!.reads).toEqual([]);
+	});
+
+	it('starts an open Read today for a Book added to Reading', () => {
+		const db = testDb();
+		const id = seedBook(db);
+		setInitialStatus(db, id, 'reading', '2026-11-21');
+		expect(loadBookDetail(db, id)!.reads).toMatchObject([
+			{ startDate: '2026-11-21', endDate: null, outcome: 'open', rating: null }
+		]);
+	});
+
+	it('records the rating on the Finished Read when one is given', () => {
+		const db = testDb();
+		const id = seedBook(db);
+		setInitialStatus(db, id, 'finished', '2026-11-21', 4);
+		expect(loadBookDetail(db, id)!.reads).toMatchObject([{ outcome: 'finished', rating: 4 }]);
+	});
+
+	it('stores and loads a half-star rating unchanged', () => {
+		const db = testDb();
+		const id = seedBook(db);
+		setInitialStatus(db, id, 'finished', '2026-11-21', 3.5);
+		expect(loadBookDetail(db, id)!.reads[0].rating).toBe(3.5);
+	});
+
+	it('logs a Finished Read ending today for a Book added to Finished', () => {
+		const db = testDb();
+		const id = seedBook(db);
+		setInitialStatus(db, id, 'finished', '2026-11-21');
+		expect(loadBookDetail(db, id)!.reads).toMatchObject([
+			{ startDate: null, endDate: '2026-11-21', outcome: 'finished', rating: null }
+		]);
+	});
+});
+
+describe('parseAddChoice', () => {
+	const form = (fields: Record<string, string>) => {
+		const f = new FormData();
+		for (const [k, v] of Object.entries(fields)) f.set(k, v);
+		return f;
+	};
+
+	it('reads the chosen status, defaulting anything else to Want to read', () => {
+		expect(parseAddChoice(form({ addAs: 'reading' }))).toEqual({ addAs: 'reading', rating: null });
+		expect(parseAddChoice(form({ addAs: 'finished' }))).toEqual({ addAs: 'finished', rating: null });
+		expect(parseAddChoice(form({ addAs: 'want' }))).toEqual({ addAs: 'want', rating: null });
+		expect(parseAddChoice(form({}))).toEqual({ addAs: 'want', rating: null });
+		expect(parseAddChoice(form({ addAs: 'abandoned' }))).toEqual({ addAs: 'want', rating: null });
+	});
+
+	it('treats a star rating as adding to Finished with that rating', () => {
+		expect(parseAddChoice(form({ rating: '4' }))).toEqual({ addAs: 'finished', rating: 4 });
+		expect(parseAddChoice(form({ rating: '1' }))).toEqual({ addAs: 'finished', rating: 1 });
+		expect(parseAddChoice(form({ rating: '0.5' }))).toEqual({ addAs: 'finished', rating: 0.5 });
+		expect(parseAddChoice(form({ rating: '3.5' }))).toEqual({ addAs: 'finished', rating: 3.5 });
+	});
+
+	it('ignores a rating outside ½ to 5 or not in half steps', () => {
+		expect(parseAddChoice(form({ rating: '6' }))).toEqual({ addAs: 'want', rating: null });
+		expect(parseAddChoice(form({ rating: '0' }))).toEqual({ addAs: 'want', rating: null });
+		expect(parseAddChoice(form({ rating: '2.3' }))).toEqual({ addAs: 'want', rating: null });
+		expect(parseAddChoice(form({ rating: 'x' }))).toEqual({ addAs: 'want', rating: null });
 	});
 });

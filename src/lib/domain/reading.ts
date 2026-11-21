@@ -25,7 +25,7 @@ export interface Read {
 	/** Set when the Read is finished or abandoned, or on a logged past Read. */
 	endDate: string | null;
 	outcome: Outcome;
-	/** 1–5, or null. */
+	/** ½ to 5 in half-star steps, or null. */
 	rating: number | null;
 	/** The reader ticked "I've read this before". */
 	readBefore: boolean;
@@ -99,14 +99,26 @@ function anchor(read: Read): string | null {
 	return read.startDate ?? read.endDate;
 }
 
-/** Whether `other` is a Finished Read strictly earlier than `read`. */
+/** A Finished Read whose finish date is unknown. */
+function isUndatedFinished(read: Read): boolean {
+	return read.outcome === 'finished' && read.endDate === null;
+}
+
+/**
+ * Whether `other` is a Finished Read strictly earlier than `read`. A Finished
+ * Read with no finish date (its date was removed) counts as read long ago:
+ * earlier than every dated Read, as on the Finished list. Two undated Reads go
+ * by creation order.
+ */
 function isEarlierFinished(other: Read, read: Read): boolean {
-	if (other.outcome !== 'finished' || other.endDate === null) return false;
-	const a = anchor(read);
-	// No date to compare against: fall back to creation order.
-	if (a === null) return other.id < read.id;
-	if (other.endDate < a) return true;
-	if (other.endDate === a) return other.id < read.id;
+	if (other.outcome !== 'finished') return false;
+	const o = other.endDate;
+	const a = isUndatedFinished(read) ? null : anchor(read);
+	if (o === null && a === null) return other.id < read.id;
+	if (o === null) return true;
+	if (a === null) return false;
+	if (o < a) return true;
+	if (o === a) return other.id < read.id;
 	return false;
 }
 
@@ -130,11 +142,14 @@ export function statusAfterDeleting(read: Read, reads: readonly Read[]): Reading
 	return readingStatus(reads.filter((r) => r.id !== read.id));
 }
 
+/** A rating is ½ to 5 stars in half-star steps. */
+export function isValidRating(rating: number): boolean {
+	return Number.isInteger(rating * 2) && rating >= 0.5 && rating <= 5;
+}
+
 function ratingError(rating: number | null | undefined): string | null {
 	if (rating == null) return null;
-	if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-		return 'Rating must be a whole number from 1 to 5.';
-	}
+	if (!isValidRating(rating)) return 'Rating must be from ½ to 5 stars, in half-star steps.';
 	return null;
 }
 

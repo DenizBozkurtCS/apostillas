@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { formatDay, ratingStars } from '#lib/format';
+	import { formatDay, formatRating, RATING_STEPS } from '#lib/format';
+	import Stars from '#lib/components/Stars.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -93,7 +94,7 @@
 						<span>Rating</span>
 						<select name="rating">
 							<option value="">Unrated</option>
-							{#each [1, 2, 3, 4, 5] as n (n)}<option value={n}>{n}</option>{/each}
+							{#each RATING_STEPS as n (n)}<option value={n}>{formatRating(n)}</option>{/each}
 						</select>
 					</label>
 					<label class="check">
@@ -116,7 +117,7 @@
 						<span>Rating</span>
 						<select name="rating">
 							<option value="">Unrated</option>
-							{#each [1, 2, 3, 4, 5] as n (n)}<option value={n}>{n}</option>{/each}
+							{#each RATING_STEPS as n (n)}<option value={n}>{formatRating(n)}</option>{/each}
 						</select>
 					</label>
 					<label class="check">
@@ -163,8 +164,24 @@
 								{#if r.startDate && r.endDate}&ndash;{/if}
 								{#if r.endDate}{formatDay(r.endDate)}{/if}
 							</span>
+							{#if r.outcome === 'finished' && (r.startDate || r.endDate)}
+								<!-- Clears both dates: the Read becomes "date unknown" (read long ago). -->
+								<form method="POST" action="?/editRead" class="remove-date">
+									<input type="hidden" name="readId" value={r.id} />
+									<input type="hidden" name="startDate" value="" />
+									<input type="hidden" name="endDate" value="" />
+									<button
+										type="submit"
+										class="link-button"
+										title="Remove the dates"
+										aria-label="Remove the dates">×</button
+									>
+								</form>
+							{:else if r.outcome === 'finished'}
+								<span class="muted">date unknown</span>
+							{/if}
 							{#if r.rating != null}
-								<span class="read-rating" title={`${r.rating} out of 5`}>{ratingStars(r.rating)}</span>
+								<span class="read-rating"><Stars rating={r.rating} /></span>
 							{/if}
 							{#if r.isReread}
 								<span class="reread" title="Reread">↻ Reread</span>
@@ -192,8 +209,8 @@
 										<span>Rating</span>
 										<select name="rating">
 											<option value="" selected={r.rating == null}>Unrated</option>
-											{#each [1, 2, 3, 4, 5] as n (n)}
-												<option value={n} selected={r.rating === n}>{n}</option>
+											{#each RATING_STEPS as n (n)}
+												<option value={n} selected={r.rating === n}>{formatRating(n)}</option>
 											{/each}
 										</select>
 									</label>
@@ -568,9 +585,8 @@
 	.read-dates {
 		color: #555;
 	}
-	.read-rating {
-		color: #b8860b;
-		letter-spacing: 1px;
+	.remove-date {
+		display: inline;
 	}
 	.reread {
 		color: #1a56db;

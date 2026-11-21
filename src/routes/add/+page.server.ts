@@ -4,6 +4,7 @@ import { coversDir } from '#lib/server/paths';
 import { searchBooks, type BookSearchResult } from '#lib/server/booksearch';
 import { addBook, addBookManually, parseAuthors, type AddBookDeps } from '#lib/server/books';
 import { checkCover, MAX_COVER_BYTES } from '#lib/server/covers';
+import { parseAddChoice, setInitialStatus, todayISO } from '#lib/server/book';
 import type { Actions, PageServerLoad } from './$types';
 
 /** Run the search when `?q=` is present so the page is bookmarkable. */
@@ -57,10 +58,15 @@ export const actions: Actions = {
 		const result = resultFromForm(form);
 		if (result.title === '') return fail(400, { error: 'This result has no title.' });
 
-		const { bookId } = await addBook(addDeps(), {
+		const { bookId, created } = await addBook(addDeps(), {
 			result,
 			whyRecommended: optional(form.get('whyRecommended'))
 		});
+		// Only a new Book gets a starting status; an existing one is just opened.
+		if (created) {
+			const { addAs, rating } = parseAddChoice(form);
+			setInitialStatus(db, bookId, addAs, todayISO(), rating);
+		}
 		// Open the Book (existing or just created) rather than a duplicate.
 		redirect(303, `/books/${bookId}`);
 	},
@@ -89,7 +95,7 @@ export const actions: Actions = {
 			}
 		}
 
-		const { bookId } = addBookManually(addDeps(), {
+		const { bookId, created } = addBookManually(addDeps(), {
 			title,
 			authors,
 			isbn: optional(form.get('isbn')),
@@ -98,6 +104,10 @@ export const actions: Actions = {
 			whyRecommended: optional(form.get('whyRecommended')),
 			cover: coverBytes
 		});
+		if (created) {
+			const { addAs, rating } = parseAddChoice(form);
+			setInitialStatus(db, bookId, addAs, todayISO(), rating);
+		}
 		// Open the Book (existing or just created) rather than a duplicate.
 		redirect(303, `/books/${bookId}`);
 	}

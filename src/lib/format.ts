@@ -15,11 +15,15 @@ export function formatDay(value: string | null | undefined): string {
 	return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-/** A 1–5 rating as filled/empty stars, or `''` when unrated. */
-export function ratingStars(rating: number | null | undefined): string {
+/** Every rating a reader can pick: ½ to 5 in half-star steps. */
+export const RATING_STEPS: readonly number[] = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
+
+/** A rating as text with a ½ for half stars (`4½`, `½`), or `''` when unrated. */
+export function formatRating(rating: number | null | undefined): string {
 	if (rating == null) return '';
-	const n = Math.max(0, Math.min(5, Math.round(rating)));
-	return '★'.repeat(n) + '☆'.repeat(5 - n);
+	const whole = Math.floor(rating);
+	const half = rating - whole >= 0.5;
+	return (whole > 0 ? String(whole) : '') + (half ? '½' : '');
 }
 
 /**

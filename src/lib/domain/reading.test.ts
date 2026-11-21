@@ -104,6 +104,29 @@ describe('isReread', () => {
 		expect(isReread(second, [first, second])).toBe(true);
 		expect(isReread(first, [first, second])).toBe(false);
 	});
+
+	it('treats a Finished Read with no date as read long ago', () => {
+		const undated = read({ id: 2, outcome: 'finished' });
+		const dated = read({ id: 1, outcome: 'finished', endDate: TODAY });
+		const open = read({ id: 3, outcome: 'open', startDate: TODAY });
+		// The undated Read is earlier than any dated one, whatever the creation order.
+		expect(isReread(dated, [dated, undated])).toBe(true);
+		expect(isReread(open, [dated, undated, open])).toBe(true);
+		expect(isReread(undated, [dated, undated])).toBe(false);
+	});
+
+	it('treats a Finished Read with a start date but no finish date as undated', () => {
+		const undated = read({ id: 2, outcome: 'finished', startDate: '2026-11-21' });
+		const dated = read({ id: 1, outcome: 'finished', endDate: '2025-01-01' });
+		expect(isReread(dated, [dated, undated])).toBe(true);
+	});
+
+	it('orders two undated Finished Reads by creation order', () => {
+		const first = read({ id: 1, outcome: 'finished' });
+		const second = read({ id: 2, outcome: 'finished' });
+		expect(isReread(second, [first, second])).toBe(true);
+		expect(isReread(first, [first, second])).toBe(false);
+	});
 });
 
 describe('statusAfterDeleting', () => {
@@ -170,11 +193,19 @@ describe('finish', () => {
 		expect(finish([], TODAY).ok).toBe(false);
 	});
 
-	it('rejects a rating outside 1–5', () => {
+	it('accepts ratings from ½ to 5 in half steps', () => {
+		const reads = [read({ id: 1, outcome: 'open', startDate: TODAY })];
+		expect(finish(reads, TODAY, { rating: 0.5 }).ok).toBe(true);
+		expect(finish(reads, TODAY, { rating: 2.5 }).ok).toBe(true);
+		expect(finish(reads, TODAY, { rating: 5 }).ok).toBe(true);
+	});
+
+	it('rejects a rating outside ½–5 or not in half steps', () => {
 		const reads = [read({ id: 1, outcome: 'open', startDate: TODAY })];
 		expect(finish(reads, TODAY, { rating: 6 }).ok).toBe(false);
+		expect(finish(reads, TODAY, { rating: 5.5 }).ok).toBe(false);
 		expect(finish(reads, TODAY, { rating: 0 }).ok).toBe(false);
-		expect(finish(reads, TODAY, { rating: 2.5 }).ok).toBe(false);
+		expect(finish(reads, TODAY, { rating: 2.3 }).ok).toBe(false);
 	});
 
 	it('carries the "read before" flag through', () => {
@@ -269,6 +300,12 @@ describe('editRead', () => {
 				patch: { startDate: '2026-01-05', endDate: '2026-02-10', rating: 4 }
 			}
 		});
+	});
+
+	it('removes the end date of a Finished Read', () => {
+		const r = read({ id: 1, outcome: 'finished', endDate: TODAY });
+		const result = editRead(r, { endDate: null });
+		expect(result).toEqual({ ok: true, mutation: { kind: 'update', id: 1, patch: { endDate: null } } });
 	});
 
 	it('clears a rating when set to null', () => {
