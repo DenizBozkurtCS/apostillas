@@ -70,6 +70,14 @@ describe('renderMarkdown', () => {
 		expect(renderMarkdown('[x](data:text/html,evil)')).toBe('<p>x</p>');
 	});
 
+	it('drops dangerous protocols hidden by characters browsers strip from URLs', () => {
+		// Browsers remove tabs and newlines anywhere in a URL and leading control
+		// characters, so these all become javascript: when clicked.
+		expect(renderMarkdown('[x](java\tscript:location=name)')).toBe('<p>x</p>');
+		expect(renderMarkdown('[x](\u0001javascript:location=name)')).toBe('<p>x</p>');
+		expect(renderMarkdown('[x](jav\u000bascript:location=name)')).toBe('<p>x</p>');
+	});
+
 	it('does not let a link href break out of the attribute', () => {
 		const html = renderMarkdown('[x](https://e.com/"onmouseover="alert(1))');
 		expect(html).not.toContain('onmouseover="alert');

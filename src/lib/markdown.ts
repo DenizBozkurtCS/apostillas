@@ -27,7 +27,11 @@ function escapeHtml(text: string): string {
  * HTML-escaped by the time it gets here, so it is safe inside an attribute.
  */
 function safeUrl(url: string): string | null {
-	const u = url.trim();
+	// Browsers strip tabs, newlines and leading control characters from URLs,
+	// so `java<TAB>script:` would pass the scheme check below and still run.
+	// Remove every ASCII control character and space before checking.
+	// eslint-disable-next-line no-control-regex
+	const u = url.replace(/[\u0000- \u007f]/g, '');
 	if (/^(https?:|mailto:)/i.test(u)) return u;
 	// Any other explicit scheme (javascript:, data:, vbscript:, …) is refused.
 	if (/^[a-z][a-z0-9+.-]*:/i.test(u)) return null;
