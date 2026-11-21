@@ -766,21 +766,24 @@
 		line-height: 1.25;
 	}
 	.meta {
+		position: relative;
 		display: flex;
 		flex-direction: column;
 		align-items: flex-start;
 		gap: 0.4rem;
 		min-width: 0;
 	}
+	/* The ⋯ menu sits in the corner so the title starts level with the cover. */
 	.top-line {
-		align-self: stretch;
-		display: flex;
-		align-items: center;
-		justify-content: flex-end;
+		position: absolute;
+		top: 0;
+		right: 0;
+		z-index: 2;
 	}
 	.meta h1 {
 		font-size: 1.85rem;
-		margin-top: 0.15rem;
+		line-height: 1.15;
+		padding-right: 2.25rem;
 	}
 	.byline {
 		margin: 0;
