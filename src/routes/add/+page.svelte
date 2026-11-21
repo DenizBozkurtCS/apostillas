@@ -3,7 +3,9 @@
 	match come first (clicking one opens it). Below, the provider's results, each
 	with a short description: clicking a cover (or title) adds that Book to the
 	library with no Reading Status and opens its page; a result that is already
-	in the library just opens it. "Add a book by hand" opens a pop-up form.
+	in the library just opens it. The library part shows at once; the provider's
+	results stream in, and if no provider answers the page says so. "Add a book
+	by hand" opens a pop-up form.
 -->
 <script lang="ts">
 	import Dialog from '#lib/components/Dialog.svelte';
@@ -22,9 +24,10 @@
 	/** The result being added, to show progress while its cover downloads. */
 	let adding = $state<string | null>(null);
 
+	type Result = Awaited<PageData['external']>['results'][number];
+
 	const byline = (authors: string[]) => authors.join(', ') || 'Unknown author';
-	const keyOf = (r: PageData['results'][number]) => r.source + (r.workId ?? '') + r.title;
-	const found = $derived(data.library.length + data.results.length);
+	const keyOf = (r: Result) => r.source + (r.workId ?? '') + r.title;
 </script>
 
 <svelte:head>
@@ -49,8 +52,6 @@
 
 	{#if !data.searched}
 		<p class="muted">Search by title, author, or ISBN in the bar at the top.</p>
-	{:else if found === 0}
-		<p class="muted">No matches for “{data.q}”. You can add it by hand.</p>
 	{/if}
 
 	{#if data.library.length > 0}
@@ -77,88 +78,104 @@
 		</section>
 	{/if}
 
-	{#if data.results.length > 0}
-		<section aria-labelledby="from-search">
-			<h2 id="from-search" class="eyebrow">
-				{data.library.length > 0 ? 'More results' : 'Results'}
-				<span class="hint">· click a cover to add it to your library</span>
-			</h2>
-			<ul class="results">
-				{#each data.results as result (keyOf(result))}
-					<li>
-						{#if result.existingId !== null}
-							<!-- Already in the library (e.g. found by ISBN): just open it. -->
-							<div class="result">
-								<a class="cover-link" href={`/books/${result.existingId}`} title="Open in your library">
-									{#if result.coverUrl}
-										<img class="cover" src={result.coverUrl} alt="" width="64" height="96" loading="lazy" />
-									{:else}
-										<span class="cover cover--none"></span>
-									{/if}
-									<span class="visually-hidden">Open {result.title}</span>
-								</a>
-								<div class="meta">
-									<a class="title" href={`/books/${result.existingId}`}>{result.title}</a>
-									<span class="byline">
-										{byline(result.authors)}
-										{#if result.firstPublishYear}<span class="year">· {result.firstPublishYear}</span>{/if}
-										<span class="in-library">· In your library</span>
-									</span>
-									{@render description(result.description)}
-								</div>
-							</div>
-						{:else}
-							<form
-								method="POST"
-								action="?/add"
-								class="result"
-								aria-busy={adding === keyOf(result)}
-								onsubmit={() => (adding = keyOf(result))}
-							>
-								<button
-									type="submit"
-									class="cover-button"
-									title="Add to your library"
-									disabled={adding !== null}
-								>
-									{#if result.coverUrl}
-										<img class="cover" src={result.coverUrl} alt="" width="64" height="96" loading="lazy" />
-									{:else}
-										<span class="cover cover--none"></span>
-									{/if}
-									<span class="visually-hidden">Add {result.title} to your library</span>
-								</button>
-								<div class="meta">
-									<button type="submit" class="title title-button" tabindex="-1" disabled={adding !== null}
-										>{result.title}</button
-									>
-									<span class="byline">
-										{byline(result.authors)}
-										{#if result.firstPublishYear}<span class="year">· {result.firstPublishYear}</span>{/if}
-									</span>
-									{#if adding === keyOf(result)}
-										<p class="description adding">Adding to your library…</p>
-									{:else}
+	{#await data.external}
+		{#if data.searched}
+			<p class="muted status" role="status">
+				<span class="spinner" aria-hidden="true"></span> Searching Open Library…
+			</p>
+		{/if}
+	{:then external}
+		{#if external.unavailable}
+			<p class="notice" role="alert">
+				Open Library isn't answering right now, so only your own books are shown. Try again in a
+				little while, or add the book by hand.
+			</p>
+		{:else if data.searched && data.library.length + external.results.length === 0}
+			<p class="muted">No matches for “{data.q}”. You can add it by hand.</p>
+		{/if}
+		{#if external.results.length > 0}
+			<section aria-labelledby="from-search">
+				<h2 id="from-search" class="eyebrow">
+					{data.library.length > 0 ? 'More results' : 'Results'}
+					<span class="hint">· click a cover to add it to your library</span>
+				</h2>
+				<ul class="results">
+					{#each external.results as result (keyOf(result))}
+						<li>
+							{#if result.existingId !== null}
+								<!-- Already in the library (e.g. found by ISBN): just open it. -->
+								<div class="result">
+									<a class="cover-link" href={`/books/${result.existingId}`} title="Open in your library">
+										{#if result.coverUrl}
+											<img class="cover" src={result.coverUrl} alt="" width="64" height="96" loading="lazy" />
+										{:else}
+											<span class="cover cover--none"></span>
+										{/if}
+										<span class="visually-hidden">Open {result.title}</span>
+									</a>
+									<div class="meta">
+										<a class="title" href={`/books/${result.existingId}`}>{result.title}</a>
+										<span class="byline">
+											{byline(result.authors)}
+											{#if result.firstPublishYear}<span class="year">· {result.firstPublishYear}</span>{/if}
+											<span class="in-library">· In your library</span>
+										</span>
 										{@render description(result.description)}
-									{/if}
+									</div>
 								</div>
+							{:else}
+								<form
+									method="POST"
+									action="?/add"
+									class="result"
+									aria-busy={adding === keyOf(result)}
+									onsubmit={() => (adding = keyOf(result))}
+								>
+									<button
+										type="submit"
+										class="cover-button"
+										title="Add to your library"
+										disabled={adding !== null}
+									>
+										{#if result.coverUrl}
+											<img class="cover" src={result.coverUrl} alt="" width="64" height="96" loading="lazy" />
+										{:else}
+											<span class="cover cover--none"></span>
+										{/if}
+										<span class="visually-hidden">Add {result.title} to your library</span>
+									</button>
+									<div class="meta">
+										<button type="submit" class="title title-button" tabindex="-1" disabled={adding !== null}
+											>{result.title}</button
+										>
+										<span class="byline">
+											{byline(result.authors)}
+											{#if result.firstPublishYear}<span class="year">· {result.firstPublishYear}</span>{/if}
+										</span>
+										{#if adding === keyOf(result)}
+											<p class="description adding">Adding to your library…</p>
+										{:else}
+											{@render description(result.description)}
+										{/if}
+									</div>
 
-								<input type="hidden" name="source" value={result.source} />
-								<input type="hidden" name="workId" value={result.workId ?? ''} />
-								<input type="hidden" name="title" value={result.title} />
-								<input type="hidden" name="authors" value={JSON.stringify(result.authors)} />
-								<input type="hidden" name="firstPublishYear" value={result.firstPublishYear ?? ''} />
-								<input type="hidden" name="coverUrl" value={result.coverUrl ?? ''} />
-								<input type="hidden" name="isbn" value={result.isbn ?? ''} />
-								<input type="hidden" name="pageCount" value={result.pageCount ?? ''} />
-								<input type="hidden" name="description" value={result.description} />
-							</form>
-						{/if}
-					</li>
-				{/each}
-			</ul>
-		</section>
-	{/if}
+									<input type="hidden" name="source" value={result.source} />
+									<input type="hidden" name="workId" value={result.workId ?? ''} />
+									<input type="hidden" name="title" value={result.title} />
+									<input type="hidden" name="authors" value={JSON.stringify(result.authors)} />
+									<input type="hidden" name="firstPublishYear" value={result.firstPublishYear ?? ''} />
+									<input type="hidden" name="coverUrl" value={result.coverUrl ?? ''} />
+									<input type="hidden" name="isbn" value={result.isbn ?? ''} />
+									<input type="hidden" name="pageCount" value={result.pageCount ?? ''} />
+									<input type="hidden" name="description" value={result.description} />
+								</form>
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			</section>
+		{/if}
+	{/await}
 </div>
 
 <Dialog title="Add a book by hand" bind:open={manualOpen}>
@@ -363,6 +380,33 @@
 		font-weight: 600;
 	}
 
+	.status {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		margin-top: 1.5rem;
+	}
+	.spinner {
+		width: 1rem;
+		height: 1rem;
+		border: 2px solid var(--border);
+		border-top-color: var(--accent);
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
+	}
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+	.notice {
+		margin-top: 1.5rem;
+		padding: 0.75rem 1rem;
+		border-radius: var(--radius);
+		background: var(--surface);
+		border: 1px solid var(--border);
+		color: var(--text-muted);
+	}
 	.small {
 		margin: 0;
 		font-size: 0.85rem;

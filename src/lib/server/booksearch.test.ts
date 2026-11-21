@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
+	BookSearchUnavailable,
 	fetchOpenLibraryDescription,
 	fetchOpenLibraryWork,
 	fetchWorkEditionCovers,
@@ -109,6 +110,34 @@ describe('searchBooks', () => {
 			[GOOGLE]: { items: [] }
 		});
 		expect(await searchBooks('zxqw no such book', fetchImpl)).toEqual([]);
+	});
+
+	it('falls back to Google Books when Open Library errors or is too slow', async () => {
+		const google = { items: [{ volumeInfo: { title: 'Found on Google' } }] };
+		const json = (body: unknown, status = 200) =>
+			new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+
+		const erroring = vi.fn(async (url: string) =>
+			url.includes('openlibrary') ? json({}, 503) : json(google)
+		);
+		expect((await searchBooks('x', erroring)).map((r) => r.title)).toEqual(['Found on Google']);
+
+		const slow = vi.fn((url: string) =>
+			url.includes('openlibrary') ? new Promise<Response>(() => {}) : Promise.resolve(json(google))
+		);
+		expect((await searchBooks('x', slow, 20)).map((r) => r.title)).toEqual(['Found on Google']);
+	});
+
+	it('throws BookSearchUnavailable when neither provider answers', async () => {
+		const json = (status: number) => new Response('{}', { status });
+		const down = vi.fn(async (url: string) => (url.includes('openlibrary') ? json(503) : json(429)));
+		await expect(searchBooks('x', down)).rejects.toBeInstanceOf(BookSearchUnavailable);
+
+		// Open Library answering "no matches" is an answer, even if Google refuses.
+		const empty = vi.fn(async (url: string) =>
+			url.includes('openlibrary') ? new Response('{"docs":[]}') : json(429)
+		);
+		expect(await searchBooks('x', empty)).toEqual([]);
 	});
 
 	it('does not search when the query is blank', async () => {

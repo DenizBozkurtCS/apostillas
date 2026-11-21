@@ -34,31 +34,66 @@ export type FetchLike = (input: string) => Promise<Response>;
 const OPEN_LIBRARY_FIELDS =
 	'key,title,author_name,first_publish_year,cover_i,isbn,number_of_pages_median';
 
+/** Neither provider answered (down, timed out, or refusing requests). */
+export class BookSearchUnavailable extends Error {
+	constructor() {
+		super('No book provider is answering right now.');
+		this.name = 'BookSearchUnavailable';
+	}
+}
+
+/** How long one provider search may take before it counts as not answering. */
+export const SEARCH_TIMEOUT_MS = 8000;
+
+/** `promise`, or a rejection once `ms` have passed. */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+	let timer: ReturnType<typeof setTimeout>;
+	const timeout = new Promise<never>((_, reject) => {
+		timer = setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms);
+	});
+	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 /**
  * Search for Books by title, author, or ISBN. Open Library is queried first and
- * Google Books is used only as a fallback when Open Library returns nothing. A
- * blank query searches nothing and returns an empty list.
+ * Google Books is used as a fallback when Open Library returns nothing or does
+ * not answer. A blank query searches nothing and returns an empty list. Throws
+ * {@link BookSearchUnavailable} when neither provider answers within
+ * `timeoutMs` each.
  */
 export async function searchBooks(
 	query: string,
-	fetchImpl: FetchLike = fetch
+	fetchImpl: FetchLike = fetch,
+	timeoutMs = SEARCH_TIMEOUT_MS
 ): Promise<BookSearchResult[]> {
 	const q = query.trim();
 	if (q === '') return [];
 
-	const fromOpenLibrary = await searchOpenLibrary(q, fetchImpl);
-	if (fromOpenLibrary.length > 0) return fromOpenLibrary;
+	let openLibraryAnswered = true;
+	try {
+		const fromOpenLibrary = await withTimeout(searchOpenLibrary(q, fetchImpl), timeoutMs);
+		if (fromOpenLibrary.length > 0) return fromOpenLibrary;
+	} catch {
+		openLibraryAnswered = false;
+	}
 
-	return searchGoogleBooks(q, fetchImpl);
+	try {
+		return await withTimeout(searchGoogleBooks(q, fetchImpl), timeoutMs);
+	} catch {
+		// Open Library answered with no matches: that is the answer.
+		if (openLibraryAnswered) return [];
+		throw new BookSearchUnavailable();
+	}
 }
 
+/** Open Library's matches; throws when it doesn't answer properly. */
 async function searchOpenLibrary(q: string, fetchImpl: FetchLike): Promise<BookSearchResult[]> {
 	const url =
 		'https://openlibrary.org/search.json?limit=20' +
 		`&fields=${OPEN_LIBRARY_FIELDS}` +
 		`&q=${encodeURIComponent(q)}`;
 	const res = await fetchImpl(url);
-	if (!res.ok) return [];
+	if (!res.ok) throw new Error(`Open Library search: HTTP ${res.status}`);
 	const body = (await res.json()) as { docs?: OpenLibraryDoc[] };
 	return (body.docs ?? []).map(mapOpenLibraryDoc);
 }
@@ -212,12 +247,13 @@ export async function fetchOpenLibraryWork(
 	}
 }
 
+/** Google Books' matches; throws when it doesn't answer properly (e.g. 429). */
 async function searchGoogleBooks(q: string, fetchImpl: FetchLike): Promise<BookSearchResult[]> {
 	const url =
 		'https://www.googleapis.com/books/v1/volumes?maxResults=20' +
 		`&q=${encodeURIComponent(q)}`;
 	const res = await fetchImpl(url);
-	if (!res.ok) return [];
+	if (!res.ok) throw new Error(`Google Books search: HTTP ${res.status}`);
 	const body = (await res.json()) as { items?: GoogleVolume[] };
 	return (body.items ?? []).map(mapGoogleVolume);
 }

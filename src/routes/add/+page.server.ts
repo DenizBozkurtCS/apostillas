@@ -1,22 +1,44 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '#lib/server/db';
 import { coversDir } from '#lib/server/paths';
-import { searchBooks, withDescriptions, type BookSearchResult } from '#lib/server/booksearch';
-import { addBook, addBookManually, findExistingBook, parseAuthors, type AddBookDeps } from '#lib/server/books';
+import {
+	BookSearchUnavailable,
+	searchBooks,
+	withDescriptions,
+	type BookSearchResult
+} from '#lib/server/booksearch';
+import {
+	addBook,
+	addBookManually,
+	findExistingBook,
+	parseAuthors,
+	type AddBookDeps
+} from '#lib/server/books';
 import { searchLibrary } from '#lib/server/lists';
 import { checkCover, MAX_COVER_BYTES } from '#lib/server/covers';
 import { parseAddChoice, setInitialStatus } from '#lib/server/book';
 import type { Actions, PageServerLoad } from './$types';
 
+type ExternalResult = BookSearchResult & { existingId: number | null };
+
+/** The provider's results, or `unavailable` when no provider answered. */
+interface External {
+	results: ExternalResult[];
+	unavailable: boolean;
+}
+
 /**
  * Run the search when `?q=` is present so the page is bookmarkable. Books
- * already in the library that match come first; a provider result that is one
- * of them is left out, and one that is in the library but didn't match the
- * words (e.g. found by ISBN) carries `existingId` so its cover just opens it.
+ * already in the library that match come first and are shown at once; the
+ * provider's results stream in after (`external` is not awaited). A provider
+ * result that is one of the shown library Books is left out, and one that is in
+ * the library but didn't match the words (e.g. found by ISBN) carries
+ * `existingId` so its cover just opens it.
  */
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = ({ url }) => {
 	const q = url.searchParams.get('q')?.trim() ?? '';
-	if (q === '') return { q, searched: false, library: [], results: [] };
+	const none: Promise<External> = Promise.resolve({ results: [], unavailable: false });
+	if (q === '') return { q, searched: false, library: [], external: none };
 
 	const library = searchLibrary(db, q).map((b) => ({
 		id: b.id,
@@ -26,11 +48,20 @@ export const load: PageServerLoad = async ({ url }) => {
 		description: b.description
 	}));
 	const shown = new Set(library.map((b) => b.id));
-	const results = (await withDescriptions(await searchBooks(q)))
-		.map((r) => ({ ...r, existingId: findExistingBook(db, r) }))
-		.filter((r) => r.existingId === null || !shown.has(r.existingId));
-	return { q, searched: true, library, results };
+	return { q, searched: true, library, external: searchExternal(q, shown) };
 };
+
+async function searchExternal(q: string, shown: ReadonlySet<number>): Promise<External> {
+	try {
+		const results = (await withDescriptions(await searchBooks(q)))
+			.map((r) => ({ ...r, existingId: findExistingBook(db, r) }))
+			.filter((r) => r.existingId === null || !shown.has(r.existingId));
+		return { results, unavailable: false };
+	} catch (err) {
+		if (err instanceof BookSearchUnavailable) return { results: [], unavailable: true };
+		throw err;
+	}
+}
 
 function addDeps(): AddBookDeps {
 	return { db, coversDir: coversDir() };
