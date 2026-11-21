@@ -30,7 +30,7 @@ export interface ShelfWithBooks {
 	books: ShelfBook[];
 }
 
-export type ShelfResult = { ok: true; slug: string } | { ok: false; error: string };
+export type ShelfResult = { ok: true; id: number; slug: string } | { ok: false; error: string };
 
 function tidyDescription(input: string | null | undefined): string | null {
 	const d = (input ?? '').trim();
@@ -90,10 +90,12 @@ export function createShelf(db: Db, nameInput: string, description?: string | nu
 	const taken = slugTaken(db, check.slug);
 	if (taken) return { ok: false, error: `You already have a Shelf called ${taken}.` };
 	const top = db.select({ p: min(shelves.position) }).from(shelves).get()?.p ?? 1;
-	db.insert(shelves)
+	const { id } = db
+		.insert(shelves)
 		.values({ name: check.name, slug: check.slug, description: tidyDescription(description), position: top - 1 })
-		.run();
-	return { ok: true, slug: check.slug };
+		.returning({ id: shelves.id })
+		.get();
+	return { ok: true, id, slug: check.slug };
 }
 
 /** Rename a Shelf; its slug (web address) follows the new name. */
@@ -104,7 +106,7 @@ export function renameShelf(db: Db, id: number, nameInput: string): ShelfResult 
 	if (taken) return { ok: false, error: `You already have a Shelf called ${taken}.` };
 	const res = db.update(shelves).set({ name: check.name, slug: check.slug }).where(eq(shelves.id, id)).run();
 	if (res.changes === 0) return { ok: false, error: 'That Shelf no longer exists.' };
-	return { ok: true, slug: check.slug };
+	return { ok: true, id, slug: check.slug };
 }
 
 /** Set or clear a Shelf's description. */
@@ -184,4 +186,22 @@ export function arrangeShelf(db: Db, shelfId: number, order: number[], removed: 
 				.run();
 		});
 	});
+}
+
+/** Every Shelf in Bookcase order, saying whether `bookId` is on it ("Add to Shelf…"). */
+export function shelvesForBook(db: Db, bookId: number): { id: number; name: string; on: boolean }[] {
+	const on = new Set(
+		db
+			.select({ shelfId: shelfBooks.shelfId })
+			.from(shelfBooks)
+			.where(eq(shelfBooks.bookId, bookId))
+			.all()
+			.map((r) => r.shelfId)
+	);
+	return db
+		.select({ id: shelves.id, name: shelves.name })
+		.from(shelves)
+		.orderBy(asc(shelves.position), asc(shelves.id))
+		.all()
+		.map((s) => ({ ...s, on: on.has(s.id) }));
 }

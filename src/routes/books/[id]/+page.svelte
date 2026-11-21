@@ -23,7 +23,7 @@
 	const isBookstack = $derived(data.status === 'Want to read');
 
 	type Tab = 'notes' | 'quotes' | 'reads';
-	type DialogName = 'details' | 'cover' | 'sync' | 'delete';
+	type DialogName = 'details' | 'cover' | 'sync' | 'shelves' | 'delete';
 
 	/** Tabs on offer. A Bookstack Book has no Reads and can't take new
 	 * annotations, so it only shows Notes/Quotes it kept from before. */
@@ -71,6 +71,8 @@
 			dialog = 'sync';
 		} else if (form?.coverError) {
 			dialog = 'cover';
+		} else if (form?.shelfError) {
+			dialog = 'shelves';
 		}
 	});
 	// "Show edition covers" reloads with ?covers=1: show them in the cover dialog.
@@ -197,6 +199,9 @@
 									>Sync from Open Library</button
 								>
 							{/if}
+							<button type="button" role="menuitem" onclick={() => openDialog('shelves')}
+								>Add to Shelf…</button
+							>
 							<hr />
 							<button
 								type="button"
@@ -704,6 +709,60 @@
 	</form>
 </Dialog>
 
+<Dialog title="Add to Shelf" bind:open={() => dialog === 'shelves', (v) => setDialogOpen('shelves', v)}>
+	<div class="stack">
+		{#if data.shelves.length > 0}
+			<ul class="shelf-picks">
+				{#each data.shelves as s (s.id)}
+					<li>
+						<form
+							method="POST"
+							action="?/setShelf"
+							use:enhance={() =>
+								async ({ update }) => {
+									await update({ reset: false });
+								}}
+						>
+							<input type="hidden" name="shelfId" value={s.id} />
+							<label class="check">
+								<input
+									type="checkbox"
+									name="on"
+									value="1"
+									checked={s.on}
+									onchange={(e) => e.currentTarget.form?.requestSubmit()}
+								/>
+								{s.name}
+							</label>
+						</form>
+					</li>
+				{/each}
+			</ul>
+		{:else}
+			<p class="dialog-text">You have no Shelves yet. Make one below.</p>
+		{/if}
+		<form
+			method="POST"
+			action="?/newShelf"
+			class="new-shelf"
+			use:enhance={() =>
+				async ({ result, update }) => {
+					await update({ reset: result.type === 'success' });
+				}}
+		>
+			{#if form?.shelfError}<p class="error" role="alert">{form.shelfError}</p>{/if}
+			<label class="field">
+				<span>New Shelf</span>
+				<span class="new-shelf-row">
+					<input name="name" type="text" required maxlength="60" placeholder="Name" />
+					<button type="submit" class="small">Create and add</button>
+				</span>
+			</label>
+		</form>
+		<p class="muted shelf-hint">Changes save as you tick. <a href="/bookcase">Go to the Bookcase</a></p>
+	</div>
+</Dialog>
+
 <Dialog title="Delete this book?" bind:open={() => dialog === 'delete', (v) => setDialogOpen('delete', v)}>
 	<form method="POST" action="?/deleteBook" class="stack" use:enhance={submit()}>
 		<p class="dialog-text">
@@ -718,6 +777,49 @@
 </Dialog>
 
 <style>
+	.shelf-picks {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		max-height: min(18rem, 45vh);
+		overflow-y: auto;
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+	}
+	.shelf-picks li + li {
+		border-top: 1px solid var(--border);
+	}
+	.shelf-picks form {
+		margin: 0;
+	}
+	.shelf-picks .check {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		padding: 0.6rem 0.8rem;
+		cursor: pointer;
+	}
+	.shelf-picks .check:hover {
+		background: var(--surface);
+	}
+	.new-shelf {
+		margin: 0;
+	}
+	.new-shelf-row {
+		display: flex;
+		gap: 0.4rem;
+	}
+	.new-shelf-row input {
+		flex: 1;
+		min-width: 0;
+	}
+	.new-shelf-row button {
+		white-space: nowrap;
+	}
+	.shelf-hint {
+		margin: 0;
+		font-size: 0.85rem;
+	}
 	.book {
 		max-width: var(--content-narrow);
 		margin: 0 auto;

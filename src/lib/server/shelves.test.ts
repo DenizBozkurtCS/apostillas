@@ -15,7 +15,8 @@ import {
 	moveShelf,
 	removeBookFromShelf,
 	renameShelf,
-	setShelfDescription
+	setShelfDescription,
+	shelvesForBook
 } from './shelves';
 
 type TestDb = BetterSQLite3Database<typeof schema>;
@@ -38,7 +39,7 @@ const idOf = (db: TestDb, slug: string) => loadShelf(db, slug)!.id;
 describe('Shelves', () => {
 	it('creates Shelves at the top of the Bookcase', () => {
 		const db = testDb();
-		expect(createShelf(db, 'Summer 2027!', '  Beach reads  ')).toEqual({ ok: true, slug: 'summer-2027' });
+		expect(createShelf(db, 'Summer 2027!', '  Beach reads  ')).toMatchObject({ ok: true, slug: 'summer-2027' });
 		createShelf(db, 'Gifts for Dad');
 		expect(names(db)).toEqual(['Gifts for Dad', 'Summer 2027!']);
 		expect(loadShelf(db, 'summer-2027')).toMatchObject({ description: 'Beach reads', books: [] });
@@ -57,12 +58,12 @@ describe('Shelves', () => {
 		createShelf(db, 'Summer 2027');
 		createShelf(db, 'Gifts');
 		const id = idOf(db, 'summer-2027');
-		expect(renameShelf(db, id, 'Summer reads')).toEqual({ ok: true, slug: 'summer-reads' });
+		expect(renameShelf(db, id, 'Summer reads')).toEqual({ ok: true, id, slug: 'summer-reads' });
 		expect(loadShelf(db, 'summer-2027')).toBeNull();
 		expect(loadShelf(db, 'summer-reads')?.name).toBe('Summer reads');
 		expect(renameShelf(db, id, 'GIFTS')).toMatchObject({ ok: false });
 		// Changing only the case keeps its own address.
-		expect(renameShelf(db, id, 'SUMMER READS')).toEqual({ ok: true, slug: 'summer-reads' });
+		expect(renameShelf(db, id, 'SUMMER READS')).toEqual({ ok: true, id, slug: 'summer-reads' });
 	});
 
 	it('sets and clears the description', () => {
@@ -141,5 +142,17 @@ describe('Shelves', () => {
 
 		addBookToShelf(db, s, b);
 		expect(loadShelf(db, 's')!.books.map((x) => x.title)).toEqual(['C', 'A', 'D', 'B']);
+	});
+
+	it('lists every Shelf in Bookcase order with whether a Book is on it', () => {
+		const db = testDb();
+		createShelf(db, 'B');
+		createShelf(db, 'A');
+		const dune = book(db, 'Dune');
+		addBookToShelf(db, idOf(db, 'b'), dune);
+		expect(shelvesForBook(db, dune).map(({ name, on }) => [name, on])).toEqual([
+			['A', false],
+			['B', true]
+		]);
 	});
 });

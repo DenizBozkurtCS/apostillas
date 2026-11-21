@@ -43,6 +43,7 @@ import { currentRating } from '#lib/domain/lists';
 import { deleteReadMessage } from '#lib/format';
 import { tagError } from '#lib/domain/tags';
 import { addTag, allTags, removeTag, tagsForBook } from '#lib/server/tags';
+import { addBookToShelf, createShelf, removeBookFromShelf, shelvesForBook } from '#lib/server/shelves';
 import type { Actions, PageServerLoad } from './$types';
 
 function parseId(raw: string): number {
@@ -114,7 +115,9 @@ export const load: PageServerLoad = async ({ params, url }) => {
 		canAnnotate: canAnnotate(status),
 		tags: tagsForBook(db, id),
 		// Every Tag in use, for the "+ tag" suggestions.
-		allTags: allTags(db)
+		allTags: allTags(db),
+		// For "Add to Shelf…": every Shelf, and whether this Book is on it.
+		shelves: shelvesForBook(db, id)
 	};
 };
 
@@ -347,6 +350,26 @@ export const actions: Actions = {
 		const id = parseId(params.id);
 		requireBook(id);
 		removeTag(db, id, String((await request.formData()).get('tag') ?? ''));
+	},
+
+	/** Put the Book on a Shelf (`on` sent) or take it off (`on` absent: an unticked box). */
+	setShelf: async ({ params, request }) => {
+		const id = parseId(params.id);
+		requireBook(id);
+		const form = await request.formData();
+		const shelfId = optionalNumber(form.get('shelfId'));
+		if (shelfId === null) return;
+		if (form.get('on') === '1') addBookToShelf(db, shelfId, id);
+		else removeBookFromShelf(db, shelfId, id);
+	},
+
+	/** Make a Shelf from "Add to Shelf…" and put the Book on it. */
+	newShelf: async ({ params, request }) => {
+		const id = parseId(params.id);
+		requireBook(id);
+		const res = createShelf(db, String((await request.formData()).get('name') ?? ''));
+		if (!res.ok) return fail(400, { shelfError: res.error });
+		addBookToShelf(db, res.id, id);
 	},
 
 	deleteBook: ({ params }) => {
