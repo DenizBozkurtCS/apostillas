@@ -1,6 +1,6 @@
 # Impressions on the Book page
 
-Status: ready-for-human
+Status: closed
 Blocked by: 01
 
 See **Impression**, **Reread**, **Didn't finish** in `GLOSSARY.md`.
@@ -13,3 +13,5 @@ See **Impression**, **Reread**, **Didn't finish** in `GLOSSARY.md`.
 - No start dates anywhere.
 
 ## Comments
+
+**RALPH (2026-11-21):** Built and pushed.
