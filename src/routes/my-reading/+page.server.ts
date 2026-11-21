@@ -18,7 +18,7 @@ import type { Actions, PageServerLoad } from './$types';
  */
 export const load: PageServerLoad = () => {
 	const books = loadLibrary(db)
-		.map((b) => ({ id: b.id, title: b.title, authors: b.authors }))
+		.map((b) => ({ bookId: b.id, title: b.title, authors: b.authors, coverPath: b.coverPath, tags: [] }))
 		.sort((a, b) => a.title.localeCompare(b.title));
 	return { impressions: loadAllImpressions(db), books, today: todayISO() };
 };

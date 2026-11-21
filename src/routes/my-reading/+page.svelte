@@ -2,19 +2,57 @@
 	My Reading (apostillas-v4/03): every Impression, newest first, grouped by
 	year. Each shows its Book's cover and title (linking to the Book), the date,
 	stars, ↻ / ⊘ markers and review, with Edit (in place) and Delete.
-	"+ Leave an Impression" opens a pop-up with a Book picker.
+	"+ Leave an Impression" opens a pop-up that first asks which Book (a search
+	over the library), then shows the Impression form with that Book's cover
+	and title beside it.
 -->
 <script lang="ts">
 	import { enhance, type SubmitFunction } from '$app/forms';
 	import Dialog from '#lib/components/Dialog.svelte';
 	import ImpressionFields from '#lib/components/ImpressionFields.svelte';
 	import ImpressionView from '#lib/components/ImpressionView.svelte';
+	import { filterItems, NO_FILTER } from '#lib/domain/listView';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let adding = $state(false);
 	let editing = $state<number | null>(null);
+
+	type PickBook = PageData['books'][number];
+	/** The Book the new Impression is about; null while still choosing. */
+	let picked = $state<PickBook | null>(null);
+	let query = $state('');
+	const MAX_MATCHES = 8;
+	const matches = $derived(
+		query.trim() === '' ? [] : filterItems(data.books, { ...NO_FILTER, text: query }).slice(0, MAX_MATCHES)
+	);
+
+	// Closing the pop-up starts the next one from the search again.
+	$effect(() => {
+		if (!adding) {
+			picked = null;
+			query = '';
+		}
+	});
+
+	/** Focus the search when it comes back after "Change book" (`autofocus` covers the pop-up opening). */
+	function focusOnMount(el: HTMLElement) {
+		el.focus();
+	}
+
+	function pick(book: PickBook) {
+		picked = book;
+		query = '';
+	}
+
+	// Enter in the search picks the first match.
+	function onSearchKey(event: KeyboardEvent) {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			if (matches[0]) pick(matches[0]);
+		}
+	}
 
 	/** The Impressions in year groups, newest year first (the list is already newest first). */
 	const years = $derived.by(() => {
@@ -143,24 +181,70 @@
 	{/if}
 </div>
 
-<Dialog title="Leave an Impression" bind:open={adding}>
-	<form method="POST" action="?/add" class="stack" use:enhance={submit({ done: () => (adding = false) })}>
-		{#if form?.error && form.editId == null}<p class="error" role="alert">{form.error}</p>{/if}
-		<label class="field">
-			<span>Book</span>
-			<select name="bookId" required>
-				<option value="" selected disabled>Choose a Book…</option>
-				{#each data.books as b (b.id)}
-					<option value={b.id}>{b.title}{b.authors.length ? ` — ${b.authors.join(', ')}` : ''}</option>
-				{/each}
-			</select>
-		</label>
-		<ImpressionFields today={data.today} />
-		<div class="form-actions">
-			<button type="submit" class="primary">Leave Impression</button>
-			<button type="button" class="ghost" onclick={() => (adding = false)}>Cancel</button>
+{#snippet cover(book: PickBook, cls: string)}
+	{#if book.coverPath}
+		<img class={cls} src={`/${book.coverPath}`} alt="" loading="lazy" />
+	{:else}
+		<span class={`${cls} cover-none`}></span>
+	{/if}
+{/snippet}
+
+<Dialog title="Leave an Impression" bind:open={adding} medium={picked !== null}>
+	{#if picked === null}
+		<div class="picker">
+			<!-- svelte-ignore a11y_autofocus (putting the cursor in the search is the point of opening the pop-up) -->
+			<input
+				type="search"
+				class="book-search"
+				placeholder="Which book? Type its title or author…"
+				aria-label="Search your books"
+				autocomplete="off"
+				bind:value={query}
+				onkeydown={onSearchKey}
+				autofocus
+				use:focusOnMount
+			/>
+			{#if query.trim() !== ''}
+				{#if matches.length === 0}
+					<p class="muted no-match">No book in your library matches “{query.trim()}”.</p>
+				{:else}
+					<ul class="matches">
+						{#each matches as b (b.bookId)}
+							<li>
+								<button type="button" class="match" onclick={() => pick(b)}>
+									{@render cover(b, 'match-cover')}
+									<span class="match-text">
+										<span class="title">{b.title}</span>
+										<span class="byline">{byline(b.authors)}</span>
+									</span>
+								</button>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			{/if}
 		</div>
-	</form>
+	{:else}
+		<div class="leave">
+			<aside class="chosen">
+				{@render cover(picked, 'chosen-cover')}
+				<div class="chosen-text">
+					<span class="title">{picked.title}</span>
+					<span class="byline">{byline(picked.authors)}</span>
+					<button type="button" class="ghost small change" onclick={() => (picked = null)}>Change book</button>
+				</div>
+			</aside>
+			<form method="POST" action="?/add" class="stack" use:enhance={submit({ done: () => (adding = false) })}>
+				{#if form?.error && form.editId == null}<p class="error" role="alert">{form.error}</p>{/if}
+				<input type="hidden" name="bookId" value={picked.bookId} />
+				<ImpressionFields today={data.today} />
+				<div class="form-actions">
+					<button type="submit" class="primary">Leave Impression</button>
+					<button type="button" class="ghost" onclick={() => (adding = false)}>Cancel</button>
+				</div>
+			</form>
+		</div>
+	{/if}
 </Dialog>
 
 <style>
@@ -279,5 +363,106 @@
 		display: flex;
 		gap: 0.5rem;
 		align-items: center;
+	}
+
+	/* Step 1: which Book. */
+	.book-search {
+		width: 100%;
+	}
+	.no-match {
+		margin: 0.75rem 0 0;
+	}
+	.matches {
+		list-style: none;
+		margin: 0.5rem 0 0;
+		padding: 0;
+	}
+	.match {
+		display: flex;
+		align-items: center;
+		justify-content: flex-start;
+		gap: 0.75rem;
+		width: 100%;
+		padding: 0.45rem 0.5rem;
+		border: none;
+		background: none;
+		border-radius: var(--radius-sm);
+		text-align: left;
+		font: inherit;
+		color: inherit;
+		cursor: pointer;
+	}
+	.match:hover,
+	.match:focus-visible {
+		background: var(--accent-soft);
+	}
+	.matches li:first-child .match {
+		box-shadow: inset 0 0 0 1px var(--border);
+	}
+	:global(.match-cover) {
+		flex-shrink: 0;
+		display: block;
+		width: 2rem;
+		height: 3rem;
+		object-fit: cover;
+		border-radius: 3px;
+		box-shadow: 0 0 0 1px var(--border);
+	}
+	.match-text,
+	.chosen-text {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		text-align: left;
+		min-width: 0;
+	}
+
+	/* Step 2: the Impression, with the Book beside it. */
+	.leave {
+		display: grid;
+		grid-template-columns: 9rem 1fr;
+		gap: 1.5rem;
+		align-items: start;
+	}
+	.chosen {
+		display: flex;
+		flex-direction: column;
+		gap: 0.6rem;
+	}
+	:global(.chosen-cover) {
+		display: block;
+		width: 9rem;
+		aspect-ratio: 2 / 3;
+		height: auto;
+		object-fit: cover;
+		border-radius: var(--radius-sm);
+		box-shadow:
+			0 0 0 1px var(--border),
+			0 6px 16px rgb(0 0 0 / 0.12);
+	}
+	:global(.cover-none.chosen-cover),
+	:global(.cover-none.match-cover) {
+		background: linear-gradient(160deg, var(--surface), var(--accent-soft));
+	}
+	.change {
+		align-self: flex-start;
+		margin-top: 0.25rem;
+		padding-left: 0;
+		padding-right: 0;
+	}
+	@media (max-width: 600px) {
+		.leave {
+			grid-template-columns: 1fr;
+			gap: 1rem;
+		}
+		.chosen {
+			flex-direction: row;
+			align-items: flex-start;
+			gap: 0.9rem;
+		}
+		:global(.chosen-cover) {
+			width: 4rem;
+			flex-shrink: 0;
+		}
 	}
 </style>

@@ -3,7 +3,8 @@
 	trapping, Escape, and the backdrop come from the browser. `open` is bindable:
 	set it to show the dialog; it turns false when the reader closes it (×,
 	Escape, or a click on the backdrop). `wide` makes it fill most of the
-	window, for writing (the Note editor).
+	window, for writing (the Note editor); `medium` is wide enough for a form
+	with a column beside it.
 -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
@@ -12,8 +13,9 @@
 		open = $bindable(false),
 		title,
 		wide = false,
+		medium = false,
 		children
-	}: { open?: boolean; title: string; wide?: boolean; children: Snippet } = $props();
+	}: { open?: boolean; title: string; wide?: boolean; medium?: boolean; children: Snippet } = $props();
 
 	let dialog: HTMLDialogElement | undefined = $state();
 	const titleId = $props.id();
@@ -30,7 +32,7 @@
 	}
 </script>
 
-<dialog bind:this={dialog} class:wide aria-labelledby={titleId} onclose={() => (open = false)} onclick={onClick}>
+<dialog bind:this={dialog} class:wide class:medium aria-labelledby={titleId} onclose={() => (open = false)} onclick={onClick}>
 	<div class="inner">
 		<header>
 			<h2 id={titleId}>{title}</h2>
@@ -54,6 +56,9 @@
 		background: var(--surface-raised);
 		color: var(--text);
 		box-shadow: var(--shadow);
+	}
+	dialog.medium {
+		width: min(46rem, calc(100vw - 2rem));
 	}
 	dialog.wide {
 		width: min(76rem, calc(100vw - 2rem));
