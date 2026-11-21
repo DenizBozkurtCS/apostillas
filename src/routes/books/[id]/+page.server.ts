@@ -247,10 +247,10 @@ export const actions: Actions = {
 		requireBook(id);
 		const result = await syncBookMetadata(db, id);
 		if (result === 'no-source') {
-			return fail(400, { metaError: 'This book was not added from Open Library, so there is nothing to sync from.' });
+			return fail(400, { syncError: 'This book was not added from Open Library, so there is nothing to sync from.' });
 		}
 		if (result === 'unavailable') {
-			return fail(502, { metaError: 'Open Library could not be reached. Try again later.' });
+			return fail(502, { syncError: 'Open Library could not be reached. Try again later.' });
 		}
 	},
 
