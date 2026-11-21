@@ -1,6 +1,6 @@
 # My Reading page
 
-Status: ready-for-human
+Status: closed
 Blocked by: 02
 
 ## Acceptance criteria
@@ -12,3 +12,5 @@ Blocked by: 02
 - An empty page says so and offers "+ Leave an Impression".
 
 ## Comments
+
+**RALPH (2026-11-21):** Built and pushed.
