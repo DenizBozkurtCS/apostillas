@@ -18,9 +18,13 @@
 	ratingAndYear
 	sorts={[
 		{ key: 'recent', label: 'Recently finished' },
-		{ key: 'rating', label: 'Rating' },
-		{ key: 'title', label: 'Title' },
-		{ key: 'author', label: 'Author' }
+		{ key: 'recent:reversed', label: 'Earliest finished' },
+		{ key: 'rating', label: 'Rating, high to low' },
+		{ key: 'rating:reversed', label: 'Rating, low to high' },
+		{ key: 'title', label: 'Title A–Z' },
+		{ key: 'title:reversed', label: 'Title Z–A' },
+		{ key: 'author', label: 'Author A–Z' },
+		{ key: 'author:reversed', label: 'Author Z–A' }
 	]}
 >
 	{#snippet card(item)}

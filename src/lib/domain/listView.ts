@@ -12,6 +12,9 @@ import type { BaseItem } from './lists';
 /** How a list can be ordered. `recent` means the list's own date, newest first. */
 export type SortKey = 'recent' | 'rating' | 'title' | 'author';
 
+/** A sort and its direction: `title` is A–Z, `title:reversed` Z–A, and so on. */
+export type SortChoice = SortKey | `${SortKey}:reversed`;
+
 export interface ListFilter {
 	/** Free text matched against title and authors (every word must match). */
 	text: string;
@@ -67,20 +70,32 @@ function authorKey(item: BaseItem): string {
 const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
 
 /**
- * The items in `key` order. `recent` keeps the incoming order, which is each
+ * The items in `choice` order. `recent` keeps the incoming order, which is each
  * list's default (see buildLists). Title and author are A–Z; rating is high to
- * low with unrated last. Ties keep the incoming (most recent first) order.
+ * low. `:reversed` flips each: oldest first, Z–A, low to high. Unrated Books
+ * stay last either way, and ties keep the incoming (most recent first) order.
  */
-export function sortItems<T extends ViewItem>(items: readonly T[], key: SortKey): T[] {
+export function sortItems<T extends ViewItem>(items: readonly T[], choice: SortChoice): T[] {
+	const [key, flag] = choice.split(':') as [SortKey, string | undefined];
+	const dir = flag === 'reversed' ? -1 : 1;
+	if (key === 'recent') return dir === 1 ? [...items] : [...items].reverse();
 	const indexed = items.map((item, i) => ({ item, i }));
 	const cmp: Record<SortKey, (a: T, b: T) => number> = {
 		recent: () => 0,
 		title: (a, b) => collator.compare(a.title, b.title),
 		author: (a, b) =>
 			collator.compare(authorKey(a), authorKey(b)) || collator.compare(a.title, b.title),
-		rating: (a, b) => (b.rating ?? -1) - (a.rating ?? -1)
+		rating: (a, b) => (b.rating ?? 0) - (a.rating ?? 0)
 	};
-	return indexed.sort((a, b) => cmp[key](a.item, b.item) || a.i - b.i).map((x) => x.item);
+	const unrated = (t: T) => key === 'rating' && t.rating == null;
+	return indexed
+		.sort(
+			(a, b) =>
+				Number(unrated(a.item)) - Number(unrated(b.item)) ||
+				dir * cmp[key](a.item, b.item) ||
+				a.i - b.i
+		)
+		.map((x) => x.item);
 }
 
 /** Distinct years the items have Impressions in, newest first. */

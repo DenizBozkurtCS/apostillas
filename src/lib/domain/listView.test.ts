@@ -100,6 +100,14 @@ describe('sortItems', () => {
 		expect(ids(sortItems([...all, tie], 'rating'))).toEqual([1, 5, 4, 2, 3]);
 	});
 
+	it('reverses each sort, keeping unrated Books last and ties in incoming order', () => {
+		const tie = item(5, { rating: 5 });
+		expect(ids(sortItems(all, 'recent:reversed'))).toEqual([4, 3, 2, 1]);
+		expect(ids(sortItems(all, 'title:reversed'))).toEqual([3, 2, 1, 4]);
+		expect(ids(sortItems(all, 'author:reversed'))).toEqual([4, 3, 1, 2]);
+		expect(ids(sortItems([...all, tie], 'rating:reversed'))).toEqual([2, 4, 1, 5, 3]);
+	});
+
 	it('does not change the input', () => {
 		const input = [...all];
 		sortItems(input, 'title');

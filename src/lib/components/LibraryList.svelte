@@ -15,7 +15,7 @@
 		sortItems,
 		tagsIn,
 		type ListFilter,
-		type SortKey,
+		type SortChoice,
 		type ViewItem
 	} from '#lib/domain/listView';
 	import EmptyState from './EmptyState.svelte';
@@ -34,14 +34,14 @@
 		/** Shown when the list has no Books at all. */
 		empty: string;
 		/** Sort options; the first is the default. */
-		sorts: { key: SortKey; label: string }[];
+		sorts: { key: SortChoice; label: string }[];
 		/** Offer the minimum-rating and year-finished filters (Books). */
 		ratingAndYear?: boolean;
 		card: Snippet<[T]>;
 	} = $props();
 
 	// svelte-ignore state_referenced_locally
-	let sort = $state<SortKey>(sorts[0].key);
+	let sort = $state<SortChoice>(sorts[0].key);
 	let filter = $state<ListFilter>({ ...NO_FILTER, tags: [] });
 
 	const filtering = $derived(isFiltering(filter));

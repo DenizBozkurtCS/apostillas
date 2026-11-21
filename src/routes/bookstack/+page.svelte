@@ -16,8 +16,11 @@
 	empty="Your Bookstack is empty."
 	sorts={[
 		{ key: 'recent', label: 'Recently added' },
-		{ key: 'title', label: 'Title' },
-		{ key: 'author', label: 'Author' }
+		{ key: 'recent:reversed', label: 'Oldest added' },
+		{ key: 'title', label: 'Title A–Z' },
+		{ key: 'title:reversed', label: 'Title Z–A' },
+		{ key: 'author', label: 'Author A–Z' },
+		{ key: 'author:reversed', label: 'Author Z–A' }
 	]}
 >
 	{#snippet card(item)}

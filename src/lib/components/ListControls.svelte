@@ -8,7 +8,7 @@
 -->
 <script lang="ts">
 	import { normalizeTag } from '#lib/domain/tags';
-	import type { ListFilter, SortKey } from '#lib/domain/listView';
+	import type { ListFilter, SortChoice } from '#lib/domain/listView';
 
 	let {
 		sort = $bindable(),
@@ -17,9 +17,9 @@
 		tags,
 		years = null
 	}: {
-		sort: SortKey;
+		sort: SortChoice;
 		filter: ListFilter;
-		sorts: { key: SortKey; label: string }[];
+		sorts: { key: SortChoice; label: string }[];
 		/** Tags on offer as suggestions. */
 		tags: string[];
 		/** Years finished, to offer the rating and year menus (Books only). */
