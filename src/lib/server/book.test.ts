@@ -7,15 +7,16 @@ import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { eq } from 'drizzle-orm';
 import * as schema from './db/schema';
-import { books, notes, quotes, reads } from './db/schema';
+import { books, impressions, notes, quotes } from './db/schema';
 import {
-	applyReadMutation,
 	deleteBook,
 	loadBookDetail,
+	rateBook,
 	setBookCoverFromBytes,
 	parseAddChoice,
 	setBookCoverFromUrl,
 	setInitialStatus,
+	setStatus,
 	syncBookMetadata,
 	updateBookMetadata
 } from './book';
@@ -52,10 +53,10 @@ function seedBook(db: BetterSQLite3Database<typeof schema>, over: Partial<typeof
 }
 
 describe('loadBookDetail', () => {
-	it('returns the Book, its Reads, and annotation counts', () => {
+	it('returns the Book, its statuses and Rating, and annotation counts', () => {
 		const db = testDb();
 		const id = seedBook(db, { description: 'Spice.', isbn: '123', pageCount: 412, workId: '/works/OL45883W' });
-		db.insert(reads).values({ bookId: id, startDate: '2026-01-01', outcome: 'open' }).run();
+		db.update(books).set({ readingSince: T1, rating: 4.5 }).run();
 		db.insert(quotes).values({ bookId: id, text: 'a' }).run();
 		db.insert(quotes).values({ bookId: id, text: 'b' }).run();
 		db.insert(notes).values({ bookId: id, body: 'n' }).run();
@@ -70,8 +71,8 @@ describe('loadBookDetail', () => {
 			pageCount: 412,
 			workId: '/works/OL45883W'
 		});
-		expect(detail.reads).toHaveLength(1);
-		expect(detail.reads[0]).toMatchObject({ outcome: 'open', startDate: '2026-01-01' });
+		expect(detail.book.statuses).toEqual({ want: null, reading: T1, finished: null });
+		expect(detail.book.rating).toBe(4.5);
 		expect(detail.quoteCount).toBe(2);
 		expect(detail.noteCount).toBe(1);
 	});
@@ -82,64 +83,69 @@ describe('loadBookDetail', () => {
 	});
 });
 
-describe('applyReadMutation', () => {
-	it('inserts a Read', () => {
+const T1 = '2026-11-01T10:00:00.000Z';
+const T2 = '2026-11-02T10:00:00.000Z';
+
+const statusesOf = (db: BetterSQLite3Database<typeof schema>, id: number) =>
+	loadBookDetail(db, id)!.book.statuses;
+
+describe('setStatus', () => {
+	it('switches each status on and off independently', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		applyReadMutation(db, id, {
-			kind: 'insert',
-			read: { startDate: '2026-01-01', endDate: null, outcome: 'open', rating: null, readBefore: false }
-		});
-		const row = db.select().from(reads).where(eq(reads.bookId, id)).get()!;
-		expect(row).toMatchObject({ outcome: 'open', startDate: '2026-01-01', readBefore: false });
+		setStatus(db, id, 'want', true, T1);
+		setStatus(db, id, 'reading', true, T1);
+		setStatus(db, id, 'finished', true, T1);
+		expect(statusesOf(db, id)).toEqual({ want: T1, reading: T1, finished: T1 });
+
+		setStatus(db, id, 'reading', false, T2);
+		expect(statusesOf(db, id)).toEqual({ want: T1, reading: null, finished: T1 });
 	});
 
-	it('updates a Read', () => {
+	it('keeps the original moment when switching on a status that is already on', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		const readId = db
-			.insert(reads)
-			.values({ bookId: id, startDate: '2026-01-01', outcome: 'open' })
-			.returning({ id: reads.id })
-			.get().id;
-		applyReadMutation(db, id, {
-			kind: 'update',
-			id: readId,
-			patch: { outcome: 'finished', endDate: '2026-02-01', rating: 5 }
-		});
-		const row = db.select().from(reads).where(eq(reads.id, readId)).get()!;
-		expect(row).toMatchObject({ outcome: 'finished', endDate: '2026-02-01', rating: 5 });
+		setStatus(db, id, 'finished', true, T1);
+		setStatus(db, id, 'finished', true, T2);
+		expect(statusesOf(db, id).finished).toBe(T1);
 	});
 
-	it('deletes a Read and keeps the Quotes and Notes on the Book', () => {
-		const db = testDb();
-		const id = seedBook(db);
-		const readId = db
-			.insert(reads)
-			.values({ bookId: id, startDate: '2026-01-01', outcome: 'finished', endDate: '2026-02-01' })
-			.returning({ id: reads.id })
-			.get().id;
-		db.insert(quotes).values({ bookId: id, text: 'q' }).run();
-		db.insert(notes).values({ bookId: id, body: 'n' }).run();
-
-		applyReadMutation(db, id, { kind: 'delete', id: readId });
-
-		expect(db.select().from(reads).where(eq(reads.id, readId)).get()).toBeUndefined();
-		expect(db.select().from(quotes).where(eq(quotes.bookId, id)).get()).toBeDefined();
-		expect(db.select().from(notes).where(eq(notes.bookId, id)).get()).toBeDefined();
-	});
-
-	it('does not touch a Read that belongs to another Book', () => {
+	it('only touches the given Book', () => {
 		const db = testDb();
 		const a = seedBook(db);
-		const b = seedBook(db, { title: 'Other', workId: null });
-		const readId = db
-			.insert(reads)
-			.values({ bookId: b, startDate: '2026-01-01', outcome: 'open' })
-			.returning({ id: reads.id })
-			.get().id;
-		applyReadMutation(db, a, { kind: 'delete', id: readId });
-		expect(db.select().from(reads).where(eq(reads.id, readId)).get()).toBeDefined();
+		const b = seedBook(db, { title: 'Emma' });
+		setStatus(db, a, 'want', true, T1);
+		expect(statusesOf(db, b).want).toBeNull();
+	});
+});
+
+describe('rateBook', () => {
+	it('sets the Rating and switches Read it on, leaving the other statuses alone', () => {
+		const db = testDb();
+		const id = seedBook(db);
+		setStatus(db, id, 'reading', true, T1);
+		expect(rateBook(db, id, 3.5, T2)).toBe(true);
+		const { book } = loadBookDetail(db, id)!;
+		expect(book.rating).toBe(3.5);
+		expect(book.statuses).toEqual({ want: null, reading: T1, finished: T2 });
+	});
+
+	it('clears the Rating without touching the statuses', () => {
+		const db = testDb();
+		const id = seedBook(db);
+		rateBook(db, id, 4, T1);
+		rateBook(db, id, null, T2);
+		const { book } = loadBookDetail(db, id)!;
+		expect(book.rating).toBeNull();
+		expect(book.statuses.finished).toBe(T1);
+	});
+
+	it('refuses an invalid rating', () => {
+		const db = testDb();
+		const id = seedBook(db);
+		expect(rateBook(db, id, 4.3)).toBe(false);
+		expect(rateBook(db, id, 0)).toBe(false);
+		expect(loadBookDetail(db, id)!.book).toMatchObject({ rating: null, statuses: { finished: null } });
 	});
 });
 
@@ -166,11 +172,11 @@ describe('updateBookMetadata', () => {
 });
 
 describe('deleteBook', () => {
-	it('deletes the Book, its Reads/Quotes/Notes, and its cover file', () => {
+	it('deletes the Book, its Impressions/Quotes/Notes, and its cover file', () => {
 		const db = testDb();
 		const id = seedBook(db);
 		const coverPath = setBookCoverFromBytes(db, coversDir, id, PNG)!;
-		db.insert(reads).values({ bookId: id, outcome: 'finished', endDate: '2026-01-01' }).run();
+		db.insert(impressions).values({ bookId: id, date: '2026-01-01' }).run();
 		db.insert(quotes).values({ bookId: id, text: 'q' }).run();
 		db.insert(notes).values({ bookId: id, body: 'n' }).run();
 		const onDisk = path.join(coversDir, path.basename(coverPath));
@@ -179,7 +185,7 @@ describe('deleteBook', () => {
 		deleteBook(db, coversDir, id);
 
 		expect(db.select().from(books).where(eq(books.id, id)).get()).toBeUndefined();
-		expect(db.select().from(reads).where(eq(reads.bookId, id)).all()).toEqual([]);
+		expect(db.select().from(impressions).where(eq(impressions.bookId, id)).all()).toEqual([]);
 		expect(db.select().from(quotes).where(eq(quotes.bookId, id)).all()).toEqual([]);
 		expect(db.select().from(notes).where(eq(notes.bookId, id)).all()).toEqual([]);
 		expect(fs.existsSync(onDisk)).toBe(false);
@@ -319,43 +325,22 @@ describe('syncBookMetadata', () => {
 });
 
 describe('setInitialStatus', () => {
-	it('leaves a Book added to Want to read without Reads', () => {
+	it('switches on the chosen status only, recording no Impression', () => {
 		const db = testDb();
-		const id = seedBook(db);
-		setInitialStatus(db, id, 'want', '2026-11-21');
-		expect(loadBookDetail(db, id)!.reads).toEqual([]);
+		for (const addAs of ['want', 'reading', 'finished'] as const) {
+			const id = seedBook(db, { title: addAs });
+			setInitialStatus(db, id, { addAs, rating: null }, T1);
+			const statuses = statusesOf(db, id);
+			expect(Object.entries(statuses).filter(([, v]) => v !== null)).toEqual([[addAs, T1]]);
+		}
+		expect(db.select().from(impressions).all()).toEqual([]);
 	});
 
-	it('starts an open Read today for a Book added to Reading', () => {
+	it('records a half-star rating unchanged on a Book added as Read it', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		setInitialStatus(db, id, 'reading', '2026-11-21');
-		expect(loadBookDetail(db, id)!.reads).toMatchObject([
-			{ startDate: '2026-11-21', endDate: null, outcome: 'open', rating: null }
-		]);
-	});
-
-	it('records the rating on the Finished Read when one is given', () => {
-		const db = testDb();
-		const id = seedBook(db);
-		setInitialStatus(db, id, 'finished', '2026-11-21', 4);
-		expect(loadBookDetail(db, id)!.reads).toMatchObject([{ outcome: 'finished', rating: 4 }]);
-	});
-
-	it('stores and loads a half-star rating unchanged', () => {
-		const db = testDb();
-		const id = seedBook(db);
-		setInitialStatus(db, id, 'finished', '2026-11-21', 3.5);
-		expect(loadBookDetail(db, id)!.reads[0].rating).toBe(3.5);
-	});
-
-	it('logs a Finished Read ending today for a Book added to Finished', () => {
-		const db = testDb();
-		const id = seedBook(db);
-		setInitialStatus(db, id, 'finished', '2026-11-21');
-		expect(loadBookDetail(db, id)!.reads).toMatchObject([
-			{ startDate: null, endDate: '2026-11-21', outcome: 'finished', rating: null }
-		]);
+		setInitialStatus(db, id, { addAs: 'finished', rating: 3.5 }, T1);
+		expect(loadBookDetail(db, id)!.book).toMatchObject({ rating: 3.5, statuses: { finished: T1 } });
 	});
 });
 

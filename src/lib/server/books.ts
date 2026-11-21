@@ -1,8 +1,8 @@
 /**
  * Adding a Book, from a search result or by hand: copy its metadata into our
  * store, store the cover in the data folder, and never create a second Book for
- * a work we already have (ADR-0002, ADR-0003). A freshly added Book has no
- * Reads, so it is Want to read (ADR-0005).
+ * a work we already have (ADR-0002, ADR-0003). The caller sets the new Book's
+ * starting Reading Status (ADR-0006).
  */
 
 import { eq } from 'drizzle-orm';

@@ -1,13 +1,9 @@
 /**
  * The store-facing side of a Book's Quotes and Notes (see GLOSSARY.md).
  *
- * Both belong to a Book (not to any Read). Every mutation is scoped to
- * `bookId`, so a forged id from the browser can only ever touch the Book on
- * screen.
- *
- * Whether Quotes and Notes may be *added* at all depends on the Book's Reading
- * Status — that rule lives in the pure domain (`canAnnotate`); this module just
- * writes rows. Note bodies are Markdown, rendered to sanitised HTML on load.
+ * Both belong to a Book, and any Book can take them. Every mutation is scoped
+ * to `bookId`, so a forged id from the browser can only ever touch the Book on
+ * screen. Note bodies are Markdown, rendered to sanitised HTML on load.
  */
 
 import { and, desc, eq } from 'drizzle-orm';

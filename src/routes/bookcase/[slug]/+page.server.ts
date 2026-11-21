@@ -1,6 +1,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { db } from '#lib/server/db';
-import { loadBooksWithReads } from '#lib/server/lists';
+import { loadLibrary } from '#lib/server/lists';
 import {
 	addBookToShelf,
 	arrangeShelf,
@@ -29,8 +29,8 @@ function requireShelf(params: { slug: string }) {
  */
 export const load: PageServerLoad = ({ params }) => {
 	const shelf = requireShelf(params);
-	const library = loadBooksWithReads(db)
-		.map(({ book }) => ({
+	const library = loadLibrary(db)
+		.map((book) => ({
 			bookId: book.id,
 			title: book.title,
 			authors: book.authors,
@@ -77,7 +77,7 @@ export const actions: Actions = {
 	add: async ({ params, request }) => {
 		const shelf = requireShelf(params);
 		const id = bookId(await request.formData());
-		if (id !== null && loadBooksWithReads(db).some(({ book }) => book.id === id)) {
+		if (id !== null && loadLibrary(db).some((book) => book.id === id)) {
 			addBookToShelf(db, shelf.id, id);
 		}
 	},

@@ -26,14 +26,6 @@ export function listName(status: ReadingStatus): string {
 	return status;
 }
 
-/**
- * A Book's Reading Status as its badge shows it: like the list name, except a
- * Finished Book is still "Finished" ("Books" names the shelf, not a status).
- */
-export function statusLabel(status: ReadingStatus): string {
-	return status === 'Finished' ? 'Finished' : listName(status);
-}
-
 /** Every rating a reader can pick: ½ to 5 in half-star steps. */
 export const RATING_STEPS: readonly number[] = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
 
@@ -44,41 +36,3 @@ export function formatRating(rating: number | null | undefined): string {
 	const half = rating - whole >= 0.5;
 	return (whole > 0 ? String(whole) : '') + (half ? '½' : '');
 }
-
-/**
- * The confirmation shown before deleting a Read. When the delete would change
- * the Book's Reading Status it says so; a move to Want to read also warns that
- * existing Quotes and Notes stay but no new ones can be added until the Book is
- * started again (ADR-0005; Quotes and Notes cannot be added to a Want to read
- * Book).
- */
-export function deleteReadMessage(opts: {
-	title: string;
-	currentStatus: ReadingStatus;
-	statusAfterDelete: ReadingStatus;
-	annotationCount: number;
-}): string {
-	const { title, currentStatus, statusAfterDelete, annotationCount } = opts;
-	if (statusAfterDelete === currentStatus) {
-		return 'Delete this Read? Its dates and rating will be lost.';
-	}
-
-	const parts = ['Delete this Read?', `${title} will move to ${listName(statusAfterDelete)}.`];
-	if (statusAfterDelete === 'Want to read') {
-		if (annotationCount > 0) {
-			const label = annotationCount === 1 ? 'Quote or Note stays' : 'Quotes and Notes stay';
-			parts.push(
-				`Its ${annotationCount} ${label}, but you can’t add new ones until you start it again.`
-			);
-		} else {
-			parts.push('You can’t add Quotes or Notes until you start it again.');
-		}
-	}
-	return parts.join(' ');
-}
-
-/** Human label for a Read's outcome. */
-export function outcomeLabel(outcome: 'open' | 'finished' | 'abandoned'): string {
-	return outcome === 'open' ? 'Reading' : outcome === 'finished' ? 'Finished' : 'Abandoned';
-}
-

@@ -10,7 +10,7 @@
 	import {
 		NO_FILTER,
 		filterItems,
-		finishYears,
+		impressionYears,
 		isFiltering,
 		sortItems,
 		tagsIn,
@@ -47,7 +47,7 @@
 	const filtering = $derived(isFiltering(filter));
 	const shown = $derived(sortItems(filterItems(items, filter), sort));
 	const tags = $derived(tagsIn(items));
-	const years = $derived(ratingAndYear ? finishYears(items) : null);
+	const years = $derived(ratingAndYear ? impressionYears(items) : null);
 
 	/** Bumped to remount the controls, which also empties their text box. */
 	let resetKey = $state(0);

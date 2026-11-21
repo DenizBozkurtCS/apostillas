@@ -50,6 +50,20 @@
       "when": 1795300000003,
       "tag": "0006_shelves",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1795300000004,
+      "tag": "0007_statuses_you_set",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1795300000005,
+      "tag": "0008_impressions",
+      "breakpoints": true
     }
   ]
 }

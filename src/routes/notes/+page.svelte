@@ -136,7 +136,7 @@
 
 {#snippet bookPicker()}
 	{#if data.books.length === 0}
-		<p class="muted">Start reading a Book to write about it.</p>
+		<p class="muted">Add a Book to write about it.</p>
 	{:else}
 		<label class="field">
 			<span>Book</span>

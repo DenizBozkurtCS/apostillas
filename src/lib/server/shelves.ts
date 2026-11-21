@@ -5,12 +5,10 @@
  */
 
 import { and, asc, eq, gt, inArray, lt, desc, min, max, ne } from 'drizzle-orm';
-import { currentRating } from '../domain/lists';
-import { readingStatus } from '../domain/reading';
 import { MAX_SHELF_DESCRIPTION, checkShelfName } from '../domain/shelves';
 import type { Db } from './books';
 import { shelfBooks, shelves } from './db/schema';
-import { loadBooksWithReads } from './lists';
+import { loadLibrary } from './lists';
 
 /** A Book as a Shelf tile shows it. */
 export interface ShelfBook {
@@ -47,14 +45,14 @@ export function loadBookcase(db: Db): ShelfWithBooks[] {
 		.all();
 
 	const books = new Map(
-		loadBooksWithReads(db).map(({ book, reads }) => [
+		loadLibrary(db).map((book) => [
 			book.id,
 			{
 				bookId: book.id,
 				title: book.title,
 				authors: book.authors,
 				coverPath: book.coverPath,
-				rating: readingStatus(reads) === 'Finished' ? currentRating(reads) : null
+				rating: book.rating
 			} satisfies ShelfBook
 		])
 	);

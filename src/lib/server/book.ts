@@ -1,20 +1,21 @@
 /**
- * The store-facing side of a single Book page: loading one Book with its Reads
- * and annotation counts, applying a Read {@link Mutation} from the pure domain,
- * editing the Book's metadata, changing its cover, and deleting it.
- *
- * The domain module (src/lib/domain/reading.ts) decides *what* changes; this
- * module only applies the change. Read mutations are scoped to the Book so a
- * forged Read id from the browser cannot touch another Book's Reads.
+ * The store-facing side of a single Book page: loading one Book, switching its
+ * Reading Statuses and setting its Rating (ADR-0006), editing its metadata,
+ * changing its cover, and deleting it.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { and, eq, sql } from 'drizzle-orm';
-import { isValidRating, logPastFinished, start, type Mutation, type Read } from '../domain/reading';
+import { eq, sql } from 'drizzle-orm';
+import {
+	isValidRating,
+	switchStatus,
+	type StatusKey,
+	type Statuses
+} from '../domain/reading';
 import type { Db } from './books';
 import { parseAuthors } from './books';
-import { books, notes, quotes, reads } from './db/schema';
+import { books, notes, quotes } from './db/schema';
 import { downloadCover, writeCover } from './covers';
 import { fetchOpenLibraryWork, type BookSearchResult, type FetchLike } from './booksearch';
 
@@ -30,35 +31,23 @@ export interface BookRow {
 	pageCount: number | null;
 	coverPath: string | null;
 	createdAt: string;
+	statuses: Statuses;
+	/** ½–5, or null when unrated. */
+	rating: number | null;
 }
 
 /** A Book with everything the Book page needs to render and act. */
 export interface BookDetail {
 	book: BookRow;
-	reads: Read[];
-	/** Number of Quotes on the Book, for the delete-a-Read warning. */
 	quoteCount: number;
-	/** Number of Notes on the Book, for the delete-a-Read warning. */
 	noteCount: number;
 }
 
-function rowToRead(r: typeof reads.$inferSelect): Read {
-	return {
-		id: r.id,
-		startDate: r.startDate,
-		endDate: r.endDate,
-		outcome: r.outcome,
-		rating: r.rating,
-		readBefore: r.readBefore
-	};
-}
-
-/** Load one Book with its Reads and annotation counts, or null if it is gone. */
+/** Load one Book with its annotation counts, or null if it is gone. */
 export function loadBookDetail(db: Db, id: number): BookDetail | null {
 	const b = db.select().from(books).where(eq(books.id, id)).get();
 	if (!b) return null;
 
-	const readRows = db.select().from(reads).where(eq(reads.bookId, id)).all();
 	const count = (table: typeof quotes | typeof notes) =>
 		db.select({ n: sql<number>`count(*)` }).from(table).where(eq(table.bookId, id)).get()?.n ?? 0;
 
@@ -73,39 +62,54 @@ export function loadBookDetail(db: Db, id: number): BookDetail | null {
 			isbn: b.isbn,
 			pageCount: b.pageCount,
 			coverPath: b.coverPath,
-			createdAt: b.createdAt
+			createdAt: b.createdAt,
+			statuses: { want: b.wantSince, reading: b.readingSince, finished: b.finishedSince },
+			rating: b.rating
 		},
-		reads: readRows.map(rowToRead),
 		quoteCount: count(quotes),
 		noteCount: count(notes)
 	};
 }
 
-/**
- * Apply a domain {@link Mutation} to a Book's Reads. Updates and deletes are
- * scoped to `bookId`. Quotes and Notes belong to the Book, so deleting a Read
- * leaves them alone.
- */
-export function applyReadMutation(db: Db, bookId: number, mutation: Mutation): void {
-	switch (mutation.kind) {
-		case 'insert':
-			db.insert(reads).values({ bookId, ...mutation.read }).run();
-			return;
-		case 'update':
-			db
-				.update(reads)
-				.set(mutation.patch)
-				.where(and(eq(reads.id, mutation.id), eq(reads.bookId, bookId)))
-				.run();
-			return;
-		case 'delete':
-			db.delete(reads).where(and(eq(reads.id, mutation.id), eq(reads.bookId, bookId))).run();
-			return;
-	}
+/** The moment a status is switched on, for ordering the lists. */
+export function nowStamp(): string {
+	return new Date().toISOString();
 }
 
-/** Which Reading Status a Book should land in when it is added. */
-export type AddAs = 'want' | 'reading' | 'finished';
+/**
+ * Switch one of a Book's Reading Statuses on or off. The others are left
+ * alone. Switching on a status that is already on keeps its original moment.
+ */
+export function setStatus(db: Db, id: number, key: StatusKey, on: boolean, now = nowStamp()): void {
+	const row = db.select().from(books).where(eq(books.id, id)).get();
+	if (!row) return;
+	const next = switchStatus(
+		{ want: row.wantSince, reading: row.readingSince, finished: row.finishedSince },
+		key,
+		on,
+		now
+	);
+	db
+		.update(books)
+		.set({ wantSince: next.want, readingSince: next.reading, finishedSince: next.finished })
+		.where(eq(books.id, id))
+		.run();
+}
+
+/**
+ * Set a Book's Rating from its stars, which also switches Finished on ("Read
+ * it"); or clear it with null, which leaves the statuses alone. An invalid
+ * rating is ignored and returns false.
+ */
+export function rateBook(db: Db, id: number, rating: number | null, now = nowStamp()): boolean {
+	if (rating !== null && !isValidRating(rating)) return false;
+	db.update(books).set({ rating }).where(eq(books.id, id)).run();
+	if (rating !== null) setStatus(db, id, 'finished', true, now);
+	return true;
+}
+
+/** Which Reading Status a Book should get when it is added. */
+export type AddAs = StatusKey;
 
 /** How the reader chose to add a Book: its starting status and, for Finished, a rating. */
 export interface AddChoice {
@@ -134,22 +138,10 @@ export function todayISO(): string {
 	return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-/**
- * Give a just-added Book (which has no Reads) its starting Reading Status:
- * Reading starts a Read today, Finished logs a Finished Read ending today, and
- * Want to read adds nothing. Dates and rating can be edited on the Book page.
- */
-export function setInitialStatus(
-	db: Db,
-	bookId: number,
-	addAs: AddAs,
-	today: string,
-	rating: number | null = null
-): void {
-	if (addAs === 'want') return;
-	const op =
-		addAs === 'reading' ? start([], today) : logPastFinished([], { endDate: today, rating });
-	if (op.ok) applyReadMutation(db, bookId, op.mutation);
+/** Give a just-added Book its starting Reading Status and, if picked, its Rating. */
+export function setInitialStatus(db: Db, bookId: number, choice: AddChoice, now = nowStamp()): void {
+	setStatus(db, bookId, choice.addAs, true, now);
+	if (choice.rating !== null) rateBook(db, bookId, choice.rating, now);
 }
 
 /** The editable metadata of a Book (title, authors, Edition fields, "why"). */
@@ -162,7 +154,7 @@ export interface BookMetaInput {
 	whyRecommended: string | null;
 }
 
-/** Overwrite a Book's editable metadata. The cover and Reads are untouched. */
+/** Overwrite a Book's editable metadata. The cover, statuses and Rating are untouched. */
 export function updateBookMetadata(db: Db, id: number, input: BookMetaInput): void {
 	db
 		.update(books)
@@ -219,8 +211,8 @@ function removeCoverFile(coversDir: string, coverPath: string | null): void {
 }
 
 /**
- * Delete a Book and everything attached to it: its Reads, Quotes and Notes
- * (via the schema's cascade) and its stored cover file.
+ * Delete a Book and everything attached to it: its Impressions, Quotes, Notes,
+ * Tags and Shelf places (via the schema's cascade) and its stored cover file.
  */
 export function deleteBook(db: Db, coversDir: string, id: number): void {
 	const coverPath = db.select({ coverPath: books.coverPath }).from(books).where(eq(books.id, id)).get()?.coverPath;

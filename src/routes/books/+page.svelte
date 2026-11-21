@@ -14,7 +14,7 @@
 <LibraryList
 	title="Books"
 	items={data.finished}
-	empty="You haven't finished anything yet."
+	empty="Nothing marked Read it yet."
 	ratingAndYear
 	sorts={[
 		{ key: 'recent', label: 'Recently finished' },
@@ -26,11 +26,8 @@
 	{#snippet card(item)}
 		<BookCard bookId={item.bookId} title={item.title} authors={item.authors} coverPath={item.coverPath}>
 			{#snippet detail()}
-				{#if item.rating != null || item.isReread}
-					<span class="detail">
-						{#if item.rating != null}<Stars rating={item.rating} />{/if}
-						{#if item.isReread}<span class="reread" title="Reread">↻<span class="visually-hidden"> Reread</span></span>{/if}
-					</span>
+				{#if item.rating != null}
+					<span class="detail"><Stars rating={item.rating} /></span>
 				{/if}
 			{/snippet}
 		</BookCard>
@@ -43,9 +40,5 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 0.4rem;
-	}
-	.reread {
-		color: var(--accent);
-		font-weight: 700;
 	}
 </style>

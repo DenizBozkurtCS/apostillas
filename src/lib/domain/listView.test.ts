@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
 	NO_FILTER,
 	filterItems,
-	finishYears,
+	impressionYears,
 	isFiltering,
 	sortItems,
 	tagsIn,
@@ -25,21 +25,21 @@ const dune = item(1, {
 	authors: ['Frank Herbert'],
 	tags: ['scifi', 'classic'],
 	rating: 5,
-	finishDate: '2025-03-01'
+	years: [2025]
 });
 const emma = item(2, {
 	title: 'Emma',
 	authors: ['Jane Austen'],
 	tags: ['classic'],
 	rating: 3.5,
-	finishDate: '2026-01-10'
+	years: [2024, 2026]
 });
 const solaris = item(3, {
 	title: 'Solaris',
 	authors: ['Stanisław Lem'],
 	tags: ['scifi'],
 	rating: null,
-	finishDate: null
+	years: []
 });
 const cien = item(4, { title: 'Cien años de soledad', authors: ['Gabriel García Márquez'], rating: 4 });
 const all = [dune, emma, solaris, cien];
@@ -69,7 +69,7 @@ describe('filterItems', () => {
 		expect(ids(filterItems(all, { ...NO_FILTER, minRating: 4 }))).toEqual([1, 4]);
 	});
 
-	it('filters by year finished', () => {
+	it('filters by a year the Book has an Impression in', () => {
 		expect(ids(filterItems(all, { ...NO_FILTER, year: 2026 }))).toEqual([2]);
 	});
 
@@ -107,9 +107,9 @@ describe('sortItems', () => {
 	});
 });
 
-describe('finishYears / tagsIn', () => {
+describe('impressionYears / tagsIn', () => {
 	it('lists distinct years newest first and Tags alphabetically', () => {
-		expect(finishYears(all)).toEqual([2026, 2025]);
+		expect(impressionYears(all)).toEqual([2026, 2025, 2024]);
 		expect(tagsIn(all)).toEqual(['classic', 'scifi']);
 	});
 });

@@ -1,145 +1,58 @@
 import { describe, it, expect } from 'vitest';
-import { buildLists, currentRating, type BookWithReads } from './lists';
-import type { Outcome, Read } from './reading';
+import { buildLists, type BookMeta } from './lists';
+import { NO_STATUSES, type Statuses } from './reading';
 
-/** Build a Read with sensible defaults; override what the test cares about. */
-function read(partial: Partial<Read> & { id: number; outcome: Outcome }): Read {
-	return { startDate: null, endDate: null, rating: null, readBefore: false, ...partial };
-}
-
-/** Build a Book-with-Reads entry; metadata defaults, override as needed. */
-function entry(
-	id: number,
-	reads: Read[],
-	over: Partial<BookWithReads['book']> = {}
-): BookWithReads {
+/** Build a Book with sensible defaults; override what the test cares about. */
+function book(id: number, statuses: Partial<Statuses>, over: Partial<BookMeta> = {}): BookMeta {
 	return {
-		book: {
-			id,
-			title: `Book ${id}`,
-			authors: ['An Author'],
-			coverPath: null,
-			whyRecommended: null,
-			createdAt: '2026-01-01',
-			tags: [],
-			...over
-		},
-		reads
+		id,
+		title: `Book ${id}`,
+		authors: ['An Author'],
+		coverPath: null,
+		whyRecommended: null,
+		createdAt: '2026-01-01',
+		tags: [],
+		statuses: { ...NO_STATUSES, ...statuses },
+		rating: null,
+		impressionYears: [],
+		...over
 	};
 }
 
+const T = (day: number) => `2026-11-${String(day).padStart(2, '0')}T10:00:00.000Z`;
+
 describe('buildLists', () => {
-	it('places each Book under its derived Reading Status', () => {
+	it('puts each Book on every list whose status it has', () => {
 		const lists = buildLists([
-			entry(1, []), // Want to read
-			entry(2, [read({ id: 10, outcome: 'open', startDate: '2026-11-01' })]), // Reading
-			entry(3, [read({ id: 11, outcome: 'finished', endDate: '2026-10-01' })]), // Finished
-			entry(4, [read({ id: 12, outcome: 'abandoned', endDate: '2026-09-01' })]) // Abandoned
+			book(1, { want: T(1) }),
+			book(2, { reading: T(1), finished: T(1) }),
+			book(3, { want: T(1), reading: T(1), finished: T(1) }),
+			book(4, {})
 		]);
-
-		expect(lists.reading.map((i) => i.bookId)).toEqual([2]);
-		expect(lists.wantToRead.map((i) => i.bookId)).toEqual([1]);
-		expect(lists.finished.map((i) => i.bookId)).toEqual([3]);
-		expect(lists.abandoned.map((i) => i.bookId)).toEqual([4]);
+		expect(lists.wantToRead.map((i) => i.bookId).sort()).toEqual([1, 3]);
+		expect(lists.reading.map((i) => i.bookId).sort()).toEqual([2, 3]);
+		expect(lists.finished.map((i) => i.bookId).sort()).toEqual([2, 3]);
 	});
 
-	it('each entry carries cover, title, and authors', () => {
+	it('leaves a Book with no status off every list', () => {
+		const lists = buildLists([book(1, {})]);
+		expect([lists.reading, lists.wantToRead, lists.finished]).toEqual([[], [], []]);
+	});
+
+	it('orders each list by when its status was switched on, newest first, ties by newest Book', () => {
 		const lists = buildLists([
-			entry(1, [], { title: 'Dune', authors: ['Frank Herbert'], coverPath: 'covers/1.jpg' })
+			book(1, { reading: T(3) }),
+			book(2, { reading: T(5) }),
+			book(3, { reading: T(3) })
 		]);
-		const item = lists.wantToRead[0];
-		expect(item).toMatchObject({
-			bookId: 1,
-			title: 'Dune',
-			authors: ['Frank Herbert'],
-			coverPath: 'covers/1.jpg'
-		});
+		expect(lists.reading.map((i) => i.bookId)).toEqual([2, 3, 1]);
 	});
 
-	it('Want to read shows date added and why, newest added first', () => {
+	it('carries the details each list shows', () => {
 		const lists = buildLists([
-			entry(1, [], { createdAt: '2026-01-01', whyRecommended: 'A friend' }),
-			entry(2, [], { createdAt: '2026-03-01', whyRecommended: null })
+			book(1, { want: T(1), finished: T(1) }, { whyRecommended: 'Ana', rating: 4.5, impressionYears: [2025], tags: ['scifi'] })
 		]);
-		expect(lists.wantToRead.map((i) => i.bookId)).toEqual([2, 1]);
-		expect(lists.wantToRead[1]).toMatchObject({ dateAdded: '2026-01-01', whyRecommended: 'A friend' });
-		expect(lists.wantToRead[0].whyRecommended).toBeNull();
-	});
-
-	it('Finished is sorted by most recent finish date and shows rating', () => {
-		const lists = buildLists([
-			entry(1, [read({ id: 10, outcome: 'finished', endDate: '2026-02-01', rating: 4 })]),
-			entry(2, [read({ id: 11, outcome: 'finished', endDate: '2026-05-01', rating: 5 })]),
-			entry(3, [read({ id: 12, outcome: 'finished', endDate: '2026-03-01', rating: null })])
-		]);
-		expect(lists.finished.map((i) => i.bookId)).toEqual([2, 3, 1]);
-		expect(lists.finished[0]).toMatchObject({ finishDate: '2026-05-01', rating: 5 });
-		expect(lists.finished[2].rating).toBe(4);
-	});
-
-	it('Finished uses the most recent Finished Read for its finish date and rating', () => {
-		const lists = buildLists([
-			entry(1, [
-				read({ id: 10, outcome: 'finished', endDate: '2026-01-01', rating: 3 }),
-				read({ id: 11, outcome: 'finished', endDate: '2026-06-01', rating: 5 })
-			])
-		]);
-		expect(lists.finished[0]).toMatchObject({ finishDate: '2026-06-01', rating: 5, isReread: true });
-	});
-
-	it('Finished marks a reread when the latest Finished Read is a Reread', () => {
-		const notReread = buildLists([
-			entry(1, [read({ id: 10, outcome: 'finished', endDate: '2026-01-01' })])
-		]);
-		expect(notReread.finished[0].isReread).toBe(false);
-
-		const reread = buildLists([
-			entry(1, [read({ id: 10, outcome: 'finished', endDate: '2026-01-01', readBefore: true })])
-		]);
-		expect(reread.finished[0].isReread).toBe(true);
-	});
-
-	it('Abandoned shows the date abandoned, most recent first', () => {
-		const lists = buildLists([
-			entry(1, [read({ id: 10, outcome: 'abandoned', endDate: '2026-02-01' })]),
-			entry(2, [read({ id: 11, outcome: 'abandoned', endDate: '2026-08-01' })])
-		]);
-		expect(lists.abandoned.map((i) => i.bookId)).toEqual([2, 1]);
-		expect(lists.abandoned[0].abandonedDate).toBe('2026-08-01');
-	});
-
-	it('a Book Finished once then re-read and abandoned stays Finished, not Abandoned', () => {
-		const lists = buildLists([
-			entry(1, [
-				read({ id: 10, outcome: 'finished', endDate: '2026-01-01' }),
-				read({ id: 11, outcome: 'abandoned', endDate: '2026-06-01' })
-			])
-		]);
-		expect(lists.finished.map((i) => i.bookId)).toEqual([1]);
-		expect(lists.abandoned).toEqual([]);
-	});
-});
-
-describe('currentRating', () => {
-	it('is the rating of the most recent Finished Read', () => {
-		const reads = [
-			read({ id: 1, outcome: 'finished', endDate: '2024-01-01', rating: 3 }),
-			read({ id: 2, outcome: 'finished', endDate: '2026-01-01', rating: 4.5 }),
-			read({ id: 3, outcome: 'abandoned', endDate: '2026-06-01', rating: 1 })
-		];
-		expect(currentRating(reads)).toBe(4.5);
-	});
-
-	it('is null when the most recent Finished Read is unrated, even if an older one is rated', () => {
-		const reads = [
-			read({ id: 1, outcome: 'finished', endDate: '2024-01-01', rating: 5 }),
-			read({ id: 2, outcome: 'finished', endDate: '2026-01-01' })
-		];
-		expect(currentRating(reads)).toBeNull();
-	});
-
-	it('is null with no Finished Read', () => {
-		expect(currentRating([read({ id: 1, outcome: 'open', startDate: '2026-01-01' })])).toBeNull();
-		expect(currentRating([])).toBeNull();
+		expect(lists.wantToRead[0]).toMatchObject({ whyRecommended: 'Ana', tags: ['scifi'] });
+		expect(lists.finished[0]).toMatchObject({ rating: 4.5, years: [2025] });
 	});
 });

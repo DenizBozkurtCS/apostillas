@@ -1,6 +1,6 @@
 <!--
-	App shell. The four Reading Status lists live under a "Library" dropdown
-	(Reading, Bookstack, Books, Abandoned), then the Bookcase (the reader's
+	App shell. The three Reading Status lists live under a "Library" dropdown
+	(Reading, Bookstack, Books), then the Bookcase (the reader's
 	Shelves) and Notes & Quotes. On the
 	right, a book search bar submits to /add, which shows the Open Library results.
 	The brand links to the start page (/). The dropdown is a disclosure: a button
@@ -23,8 +23,7 @@
 	const lists = [
 		{ href: '/reading', label: 'Reading', icon: 'reading' },
 		{ href: '/bookstack', label: 'Bookstack', icon: 'want' },
-		{ href: '/books', label: 'Books', icon: 'finished' },
-		{ href: '/abandoned', label: 'Abandoned', icon: 'abandoned' }
+		{ href: '/books', label: 'Books', icon: 'finished' }
 	] as const;
 
 	// Exact match: /books/12 is a Book page, not the Books list.

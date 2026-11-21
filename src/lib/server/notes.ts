@@ -8,11 +8,10 @@
  */
 
 import { desc, eq } from 'drizzle-orm';
-import { canAnnotate, readingStatus } from '../domain/reading';
 import { renderMarkdown } from '../markdown';
 import type { Db } from './books';
 import { books, notes, quotes } from './db/schema';
-import { loadBooksWithReads } from './lists';
+import { loadLibrary } from './lists';
 
 /** The Book shown on a Notes & Quotes card. */
 export interface FeedBook {
@@ -108,14 +107,10 @@ export function loadFeed(db: Db): { notes: FeedNote[]; quotes: FeedQuote[] } {
 	};
 }
 
-/**
- * The Books a new Quote or Note can be written about (any Reading Status but
- * Want to read), by title.
- */
+/** The Books a new Quote or Note can be written about: every Book, by title. */
 export function annotatableBooks(db: Db): AnnotatableBook[] {
-	return loadBooksWithReads(db)
-		.filter(({ reads }) => canAnnotate(readingStatus(reads)))
-		.map(({ book }) => ({
+	return loadLibrary(db)
+		.map((book) => ({
 			id: book.id,
 			title: book.title,
 			authors: book.authors
@@ -123,7 +118,7 @@ export function annotatableBooks(db: Db): AnnotatableBook[] {
 		.sort((a, b) => a.title.localeCompare(b.title));
 }
 
-/** Whether a Book exists and can take new Quotes and Notes. */
+/** Whether a Book exists, so it can take new Quotes and Notes. */
 export function canAnnotateBook(db: Db, bookId: number): boolean {
 	return annotatableBooks(db).some((b) => b.id === bookId);
 }

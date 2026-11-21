@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deleteReadMessage, formatDay, formatRating, listName, RATING_STEPS, statusLabel } from './format';
+import { formatDay, formatRating, listName, RATING_STEPS } from './format';
 
 describe('formatDay', () => {
 	it('returns an empty string for null, undefined, or empty', () => {
@@ -39,64 +39,10 @@ describe('formatRating', () => {
 	});
 });
 
-describe('deleteReadMessage', () => {
-	it('just asks to delete when the Reading Status will not change', () => {
-		const msg = deleteReadMessage({
-			title: 'Dune',
-			currentStatus: 'Finished',
-			statusAfterDelete: 'Finished',
-			annotationCount: 2
-		});
-		expect(msg).toContain('Delete this Read');
-		expect(msg).not.toContain('move to');
-	});
-
-	it('warns about a move to Want to read and that annotations stay', () => {
-		const msg = deleteReadMessage({
-			title: 'Dune',
-			currentStatus: 'Finished',
-			statusAfterDelete: 'Want to read',
-			annotationCount: 3
-		});
-		expect(msg).toContain('Dune will move to Bookstack.');
-		expect(msg).toContain(
-			'Its 3 Quotes and Notes stay, but you can’t add new ones until you start it again.'
-		);
-	});
-
-	it('warns about the move to Want to read without the annotation clause when there are none', () => {
-		const msg = deleteReadMessage({
-			title: 'Dune',
-			currentStatus: 'Reading',
-			statusAfterDelete: 'Want to read',
-			annotationCount: 0
-		});
-		expect(msg).toContain('Dune will move to Bookstack.');
-		expect(msg).not.toContain('stay');
-	});
-
-	it('names a move to another status without the Want to read clause', () => {
-		const msg = deleteReadMessage({
-			title: 'Dune',
-			currentStatus: 'Reading',
-			statusAfterDelete: 'Finished',
-			annotationCount: 1
-		});
-		expect(msg).toContain('Dune will move to Books.');
-		expect(msg).not.toContain('start it again');
-	});
-});
-
-describe('listName and statusLabel', () => {
+describe('listName', () => {
 	it('shows Want to read as Bookstack and the Finished list as Books', () => {
 		expect(listName('Want to read')).toBe('Bookstack');
 		expect(listName('Finished')).toBe('Books');
 		expect(listName('Reading')).toBe('Reading');
-		expect(listName('Abandoned')).toBe('Abandoned');
-	});
-
-	it('keeps a Finished Book badged as Finished', () => {
-		expect(statusLabel('Finished')).toBe('Finished');
-		expect(statusLabel('Want to read')).toBe('Bookstack');
 	});
 });

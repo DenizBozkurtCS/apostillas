@@ -19,7 +19,7 @@ export interface ListFilter {
 	tags: string[];
 	/** Minimum rating (Books only), or null for any. */
 	minRating: number | null;
-	/** Year finished (Books only), or null for any. */
+	/** A year the Book has an Impression in (Books only), or null for any. */
 	year: number | null;
 }
 
@@ -38,7 +38,8 @@ function fold(s: string): string {
 /** The fields filtering and sorting look at beyond {@link BaseItem}. */
 export interface ViewItem extends BaseItem {
 	rating?: number | null;
-	finishDate?: string | null;
+	/** Years the Book has Impressions in. */
+	years?: number[];
 }
 
 /** The items that pass every filter, in their original order. */
@@ -51,7 +52,7 @@ export function filterItems<T extends ViewItem>(items: readonly T[], f: ListFilt
 		}
 		if (f.tags.length > 0 && !f.tags.some((t) => item.tags.includes(t))) return false;
 		if (f.minRating != null && (item.rating == null || item.rating < f.minRating)) return false;
-		if (f.year != null && !item.finishDate?.startsWith(String(f.year))) return false;
+		if (f.year != null && !item.years?.includes(f.year)) return false;
 		return true;
 	});
 }
@@ -82,14 +83,9 @@ export function sortItems<T extends ViewItem>(items: readonly T[], key: SortKey)
 	return indexed.sort((a, b) => cmp[key](a.item, b.item) || a.i - b.i).map((x) => x.item);
 }
 
-/** Distinct years in which items were finished, newest first. */
-export function finishYears(items: readonly ViewItem[]): number[] {
-	const years = new Set<number>();
-	for (const i of items) {
-		const y = Number(i.finishDate?.slice(0, 4));
-		if (Number.isInteger(y) && y > 0) years.add(y);
-	}
-	return [...years].sort((a, b) => b - a);
+/** Distinct years the items have Impressions in, newest first. */
+export function impressionYears(items: readonly ViewItem[]): number[] {
+	return [...new Set(items.flatMap((i) => i.years ?? []))].sort((a, b) => b - a);
 }
 
 /** Distinct Tags across items, alphabetically. */

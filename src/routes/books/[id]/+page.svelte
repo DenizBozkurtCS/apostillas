@@ -1,6 +1,7 @@
 <!--
-	The Book page. Reading content comes first: a header with the cover, status
-	and actions, a short About, then tabs for Notes, Quotes and Reads. Managing
+	The Book page. Reading content comes first: a header with the cover and the
+	Reading Status switches and stars (ADR-0006), a short About, then tabs for
+	Notes and Quotes. Managing
 	the Book (details, cover, sync, delete) lives behind the ⋯ menu, in dialogs.
 
 	Forms submit with `enhance`, so the page does not reload and the open tab
@@ -8,11 +9,10 @@
 -->
 <script lang="ts">
 	import { enhance, type SubmitFunction } from '$app/forms';
-	import { formatDay, outcomeLabel, statusLabel } from '#lib/format';
+	import { formatDay, formatRating, RATING_STEPS } from '#lib/format';
 	import MarkdownEditor from '#lib/components/MarkdownEditor.svelte';
 	import Dialog from '#lib/components/Dialog.svelte';
-	import Stars from '#lib/components/Stars.svelte';
-	import StarInput from '#lib/components/StarInput.svelte';
+	import StatusIcon from '#lib/components/StatusIcon.svelte';
 	import TagEditor from '#lib/components/TagEditor.svelte';
 	import type { ActionData, PageData } from './$types';
 
@@ -20,29 +20,29 @@
 
 	const book = $derived(data.book);
 	const byline = $derived(book.authors.join(', ') || 'Unknown author');
-	const isBookstack = $derived(data.status === 'Want to read');
 
-	type Tab = 'notes' | 'quotes' | 'reads';
+	/** The status switches, in the order the Add page shows them. */
+	const switches = [
+		{ key: 'want', on: 'In Bookstack', off: 'Add to Bookstack' },
+		{ key: 'reading', on: 'Reading', off: 'Mark as Reading' },
+		{ key: 'finished', on: 'Read it', off: 'Mark as Read it' }
+	] as const;
+	/** Star values 5 → ½; drawn reversed so hover fills everything to the left. */
+	const STARS_HIGH_TO_LOW = [...RATING_STEPS].reverse();
+
+	type Tab = 'notes' | 'quotes';
 	type DialogName = 'details' | 'cover' | 'sync' | 'shelves' | 'delete';
 
-	/** Tabs on offer. A Bookstack Book has no Reads and can't take new
-	 * annotations, so it only shows Notes/Quotes it kept from before. */
-	const tabs = $derived.by(() => {
-		const all: { id: Tab; label: string; count: number }[] = [
-			{ id: 'notes', label: 'Notes', count: data.notes.length },
-			{ id: 'quotes', label: 'Quotes', count: data.quotes.length },
-			{ id: 'reads', label: 'Reads', count: data.reads.length }
-		];
-		return isBookstack ? all.filter((t) => t.id !== 'reads' && t.count > 0) : all;
-	});
+	const tabs = $derived<{ id: Tab; label: string; count: number }[]>([
+		{ id: 'notes', label: 'Notes', count: data.notes.length },
+		{ id: 'quotes', label: 'Quotes', count: data.quotes.length }
+	]);
 
 	let tab = $state<Tab>('notes');
 	/** The tab actually shown: the chosen one if on offer, else the first. */
 	const activeTab = $derived(tabs.some((t) => t.id === tab) ? tab : tabs[0]?.id);
 
-	/** Which status panel (Finish / Log past read) is open under the actions. */
-	let panel = $state<'finish' | 'logPast' | null>(null);
-	/** Which Read, Quote or Note is being edited in place, e.g. `quote-12`. */
+	/** Which Quote or Note is being edited in place, e.g. `quote-12`. */
 	let editing = $state<string | null>(null);
 	let addingQuote = $state(false);
 	let addingNote = $state(false);
@@ -101,9 +101,6 @@
 		};
 	}
 
-	function togglePanel(p: 'finish' | 'logPast') {
-		panel = panel === p ? null : p;
-	}
 	function toggleEdit(key: string) {
 		editing = editing === key ? null : key;
 	}
@@ -168,7 +165,6 @@
 
 		<div class="meta">
 			<div class="top-line">
-				<span class="badge">{statusLabel(data.status)}</span>
 				<div class="more" bind:this={menu}>
 					<button
 						type="button"
@@ -215,11 +211,6 @@
 			</div>
 			<h1>{book.title}</h1>
 			<p class="byline">{byline}</p>
-			{#if data.rating != null}
-				<p class="rating">
-					<Stars rating={data.rating} />
-				</p>
-			{/if}
 			<TagEditor tags={data.tags} allTags={data.allTags} error={form?.tagError ?? null} />
 			<p class="facts">
 				{#if book.pageCount}<span>{book.pageCount} pages</span>{/if}
@@ -230,87 +221,47 @@
 				<p class="why">“{book.whyRecommended}”</p>
 			{/if}
 
-			<!-- Actions by Reading Status -->
-			<div class="actions">
-				{#if isBookstack}
-					<form method="POST" action="?/start" use:enhance={submit()}>
-						<button type="submit" class="primary">Start reading</button>
+			<!-- Reading Status switches (each toggles on/off) and the Book's Rating.
+			     A star rates the Book and switches Read it on (ADR-0006). -->
+			<div class="statuses" role="group" aria-label="Reading status">
+				{#each switches as sw (sw.key)}
+					{@const isOn = book.statuses[sw.key] !== null}
+					<form method="POST" action="?/setStatus" use:enhance={submit()}>
+						<input type="hidden" name="status" value={sw.key} />
+						<input type="hidden" name="on" value={isOn ? '0' : '1'} />
+						<button
+							type="submit"
+							class="icon status"
+							class:on={isOn}
+							aria-pressed={isOn}
+							title={isOn ? `${sw.on} (click to undo)` : sw.off}
+							aria-label={sw.on}><StatusIcon status={sw.key} /></button
+						>
 					</form>
-					<button
-						type="button"
-						aria-expanded={panel === 'logPast'}
-						onclick={() => togglePanel('logPast')}>Log past read</button
-					>
-				{:else if data.status === 'Reading'}
-					<button
-						type="button"
-						class="primary"
-						aria-expanded={panel === 'finish'}
-						onclick={() => togglePanel('finish')}>Finish</button
-					>
-					<form method="POST" action="?/abandon" use:enhance={submit()}>
-						<button type="submit">Abandon</button>
-					</form>
-					<form
-						method="POST"
-						action="?/backToWant"
-						use:enhance={submit({
-							confirm: `${book.title} will go back to Bookstack. Its open Read is removed; Quotes and Notes stay.`
-						})}
-					>
-						<button type="submit" class="ghost">Back to Bookstack</button>
-					</form>
-				{:else}
-					<form method="POST" action="?/start" use:enhance={submit()}>
-						<button type="submit" class="primary">Start again</button>
-					</form>
-				{/if}
+				{/each}
+				<form method="POST" action="?/rate" class="rate" use:enhance={submit()}>
+					<span class="stars" role="group" aria-label="Rating">
+						{#each STARS_HIGH_TO_LOW as n (n)}
+							<button
+								type="submit"
+								name="rating"
+								value={n}
+								class={Number.isInteger(n) ? 'half-right' : 'half-left'}
+								class:lit={book.rating != null && n <= book.rating}
+								title={`Rate ${formatRating(n)} of 5`}
+								aria-label={`Rate ${formatRating(n)} of 5`}
+								aria-pressed={book.rating === n}><span aria-hidden="true">★</span></button
+							>
+						{/each}
+					</span>
+					{#if book.rating != null}
+						<span class="visually-hidden">Rated {formatRating(book.rating)} of 5</span>
+						<button type="submit" name="clear" value="1" class="ghost small clear-rating"
+							>Clear rating</button
+						>
+					{/if}
+				</form>
 			</div>
-
-			{#if panel === 'logPast' && isBookstack}
-				<form
-					method="POST"
-					action="?/logPast"
-					class="stack panel"
-					use:enhance={submit({ done: () => (panel = null) })}
-				>
-					<label class="field">
-						<span>Finished on</span>
-						<input name="endDate" type="date" required />
-					</label>
-					<div class="field">
-						<span>Rating</span>
-						<StarInput />
-					</div>
-					<label class="check">
-						<input name="readBefore" type="checkbox" />
-						<span>I've read this before</span>
-					</label>
-					<button type="submit" class="primary">Log past read</button>
-				</form>
-			{:else if panel === 'finish' && data.status === 'Reading'}
-				<form
-					method="POST"
-					action="?/finish"
-					class="stack panel"
-					use:enhance={submit({ done: () => (panel = null) })}
-				>
-					<label class="field">
-						<span>Finished on</span>
-						<input name="endDate" type="date" />
-						<small>Leave blank for today.</small>
-					</label>
-					<div class="field">
-						<span>Rating</span>
-						<StarInput />
-					</div>
-					<label class="check">
-						<input name="readBefore" type="checkbox" />
-						<span>I've read this before</span>
-					</label>
-					<button type="submit" class="primary">Finish</button>
-				</form>
-			{/if}
 
 			{#if form?.error}
 				<p class="error" role="alert">{form.error}</p>
@@ -336,8 +287,7 @@
 		</section>
 	{/if}
 
-	{#if tabs.length > 0}
-		<section class="tabbed">
+	<section class="tabbed">
 			<div class="tablist" role="tablist" aria-label="Book content" tabindex="-1" onkeydown={onTabKeydown}>
 				{#each tabs as t (t.id)}
 					<button
@@ -362,7 +312,6 @@
 						<p class="error" role="alert">{form.noteError}</p>
 					{/if}
 
-					{#if data.canAnnotate}
 						{#if addingNote}
 							<form
 								method="POST"
@@ -383,9 +332,6 @@
 								>+ Add a Note</button
 							>
 						{/if}
-					{:else}
-						<p class="muted hint">Start this Book to add Notes. Existing Notes stay here.</p>
-					{/if}
 
 					{#if data.notes.length === 0}
 						<p class="muted empty">No Notes yet.</p>
@@ -432,7 +378,6 @@
 						<p class="error" role="alert">{form.quoteError}</p>
 					{/if}
 
-					{#if data.canAnnotate}
 						{#if addingQuote}
 							<form
 								method="POST"
@@ -461,9 +406,6 @@
 								>+ Add a Quote</button
 							>
 						{/if}
-					{:else}
-						<p class="muted hint">Start this Book to add Quotes. Existing Quotes stay here.</p>
-					{/if}
 
 					{#if data.quotes.length === 0}
 						<p class="muted empty">No Quotes yet.</p>
@@ -511,86 +453,7 @@
 				</div>
 			{/if}
 
-			<!-- Reads -->
-			{#if activeTab === 'reads'}
-				<div class="tabpanel" role="tabpanel" id="panel-reads" aria-labelledby="tab-reads">
-					{#if data.reads.length === 0}
-						<p class="muted empty">No Reads yet.</p>
-					{:else}
-						<ul class="items">
-							{#each data.reads as r (r.id)}
-								{@const key = `read-${r.id}`}
-								<li class="item">
-									<div class="item-row">
-										<div class="read-line">
-											<span class="outcome" data-outcome={r.outcome}>{outcomeLabel(r.outcome)}</span>
-											<span class="muted">
-												{#if r.startDate}{formatDay(r.startDate)}{/if}
-												{#if r.startDate && r.endDate}&ndash;{/if}
-												{#if r.endDate}{formatDay(r.endDate)}{/if}
-												{#if r.outcome === 'finished' && !r.startDate && !r.endDate}date unknown{/if}
-											</span>
-											{#if r.outcome === 'finished' && (r.startDate || r.endDate)}
-												<!-- Clears both dates: the Read becomes "date unknown" (read long ago). -->
-												<form method="POST" action="?/editRead" class="inline" use:enhance={submit()}>
-													<input type="hidden" name="readId" value={r.id} />
-													<input type="hidden" name="startDate" value="" />
-													<input type="hidden" name="endDate" value="" />
-													<button
-														type="submit"
-														class="ghost small clear-dates"
-														title="Remove the dates"
-														aria-label="Remove the dates">×</button
-													>
-												</form>
-											{/if}
-											{#if r.rating != null}
-												<Stars rating={r.rating} />
-											{/if}
-											{#if r.isReread}
-												<span class="reread" title="Reread">↻ Reread</span>
-											{/if}
-										</div>
-										{@render itemTools(key, '?/deleteRead', 'readId', r.id, r.deleteMessage)}
-									</div>
-
-									{#if editing === key}
-										<form
-											method="POST"
-											action="?/editRead"
-											class="stack edit"
-											use:enhance={submit({ done: () => (editing = null) })}
-										>
-											<input type="hidden" name="readId" value={r.id} />
-											<div class="row">
-												{#if r.outcome !== 'finished' || r.startDate !== null}
-													<label class="field">
-														<span>Started on</span>
-														<input name="startDate" type="date" value={r.startDate ?? ''} />
-													</label>
-												{/if}
-												{#if r.outcome !== 'open'}
-													<label class="field">
-														<span>Ended on</span>
-														<input name="endDate" type="date" value={r.endDate ?? ''} />
-													</label>
-												{/if}
-											</div>
-											<div class="field">
-												<span>Rating</span>
-												<StarInput value={r.rating} />
-											</div>
-											<button type="submit" class="primary small">Save</button>
-										</form>
-									{/if}
-								</li>
-							{/each}
-						</ul>
-					{/if}
-				</div>
-			{/if}
-		</section>
-	{/if}
+	</section>
 </article>
 
 <!-- ⋯ menu dialogs -->
@@ -866,7 +729,7 @@
 		align-self: stretch;
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
+		justify-content: flex-end;
 	}
 	.meta h1 {
 		font-size: 1.85rem;
@@ -876,11 +739,6 @@
 		margin: 0;
 		font-size: 1.05rem;
 		color: var(--text-muted);
-	}
-	.rating {
-		margin: 0;
-		font-size: 1.35rem;
-		line-height: 1;
 	}
 	.facts {
 		display: flex;
@@ -899,15 +757,80 @@
 		font-style: italic;
 		color: var(--text-muted);
 	}
-	.actions {
+	/* Reading Status switches: square icon buttons, accent-filled when on. */
+	.statuses {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.5rem;
+		gap: 0.4rem;
 		margin-top: 1rem;
 	}
-	.actions form {
+	.statuses form {
 		margin: 0;
+	}
+	button.status {
+		width: 2.1rem;
+		height: 2.1rem;
+		padding: 0;
+	}
+	button.status.on,
+	button.status.on:hover {
+		background: var(--accent);
+		border-color: var(--accent);
+		color: var(--accent-contrast);
+	}
+	.rate {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-left: 0.3rem;
+	}
+	.clear-rating {
+		color: var(--text-faint);
+	}
+
+	/* Stars: each button is one half of a 1em-wide glyph, drawn 5 → ½ and
+	   reversed, so hovering lights everything to the left of the pointer. */
+	.stars {
+		display: inline-flex;
+		flex-direction: row-reverse;
+	}
+	.stars button {
+		display: inline-block;
+		background: none;
+		border: none;
+		border-radius: 0;
+		padding: 0;
+		width: 0.5em;
+		overflow: hidden;
+		font-size: 1.35rem;
+		line-height: 1;
+		color: var(--star-empty);
+	}
+	.stars button span {
+		display: inline-block;
+		width: 1em;
+		text-align: center;
+	}
+	.stars .half-right {
+		margin-right: 0.08em;
+	}
+	.stars .half-right span {
+		margin-left: -0.5em;
+	}
+	.stars button.lit {
+		color: var(--star);
+	}
+	/* While hovering, show the would-be rating instead of the current one. */
+	.stars:hover button {
+		color: var(--star-empty);
+	}
+	.stars button:hover,
+	.stars button:hover ~ button,
+	.stars button:focus-visible,
+	.stars button:focus-visible ~ button {
+		background: none;
+		color: var(--star);
 	}
 	.panel {
 		width: 100%;
@@ -1046,7 +969,6 @@
 	.adder {
 		margin-bottom: 0.5rem;
 	}
-	.hint,
 	.empty {
 		font-size: 0.92rem;
 	}
@@ -1089,8 +1011,7 @@
 			opacity: 1;
 		}
 	}
-	.tools form,
-	form.inline {
+	.tools form {
 		margin: 0;
 		display: inline;
 	}
@@ -1099,41 +1020,10 @@
 		border-radius: var(--radius);
 		background: var(--surface);
 	}
-	.item-row + .edit {
-		margin-top: 0.6rem;
-	}
 	.form-actions {
 		display: flex;
 		gap: 0.4rem;
 		align-items: center;
-	}
-
-	.read-line {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 0.35rem 0.75rem;
-		font-size: 0.95rem;
-	}
-	.outcome {
-		font-weight: 600;
-	}
-	.outcome[data-outcome='open'] {
-		color: var(--accent);
-	}
-	.outcome[data-outcome='abandoned'] {
-		color: var(--text-muted);
-	}
-	.clear-dates {
-		padding: 0 0.35rem;
-		margin-left: -0.5rem;
-		line-height: 1.2;
-		color: var(--text-faint);
-	}
-	.reread {
-		color: var(--accent);
-		font-size: 0.85rem;
-		font-weight: 600;
 	}
 
 	.item-meta {

@@ -4,32 +4,17 @@ import { coversDir } from '#lib/server/paths';
 import { fetchWorkEditionCovers } from '#lib/server/booksearch';
 import { checkCover, MAX_COVER_BYTES } from '#lib/server/covers';
 import {
-	applyReadMutation,
 	deleteBook,
 	loadBookDetail,
+	rateBook,
 	setBookCoverFromBytes,
 	setBookCoverFromUrl,
+	setStatus,
 	syncBookMetadata,
-	todayISO,
 	updateBookMetadata,
 	type BookDetail
 } from '#lib/server/book';
-import {
-	abandon,
-	canAnnotate,
-	deleteRead,
-	editRead,
-	finish,
-	isReread,
-	logPastFinished,
-	readingStatus,
-	readsNewestFirst,
-	revertToWantToRead,
-	start,
-	statusAfterDeleting,
-	type EditReadFields,
-	type OpResult
-} from '#lib/domain/reading';
+import { parseStatusKey } from '#lib/domain/reading';
 import {
 	addNote,
 	addQuote,
@@ -39,8 +24,6 @@ import {
 	editQuote,
 	loadAnnotations
 } from '#lib/server/annotations';
-import { currentRating } from '#lib/domain/lists';
-import { deleteReadMessage } from '#lib/format';
 import { tagError } from '#lib/domain/tags';
 import { addTag, allTags, removeTag, tagsForBook } from '#lib/server/tags';
 import { addBookToShelf, createShelf, removeBookFromShelf, shelvesForBook } from '#lib/server/shelves';
@@ -75,21 +58,7 @@ const MAX_COVER_MB = MAX_COVER_BYTES / (1024 * 1024);
 
 export const load: PageServerLoad = async ({ params, url }) => {
 	const id = parseId(params.id);
-	const detail = requireBook(id);
-	const { book, reads, quoteCount, noteCount } = detail;
-	const status = readingStatus(reads);
-	const annotationCount = quoteCount + noteCount;
-
-	const readItems = readsNewestFirst(reads).map((r) => ({
-		...r,
-		isReread: isReread(r, reads),
-		deleteMessage: deleteReadMessage({
-			title: book.title,
-			currentStatus: status,
-			statusAfterDelete: statusAfterDeleting(r, reads),
-			annotationCount
-		})
-	}));
+	const { book, quoteCount, noteCount } = requireBook(id);
 
 	// Edition covers are fetched over the network only when the reader opens the
 	// cover picker (`?covers=1`) on a Book that has an Open Library work ID.
@@ -102,17 +71,11 @@ export const load: PageServerLoad = async ({ params, url }) => {
 
 	return {
 		book,
-		status,
-		// Rating of the most recent Finished Read, shown in the header.
-		rating: currentRating(reads),
-		reads: readItems,
 		quoteCount,
 		noteCount,
 		editionCovers,
 		quotes: annotations.quotes,
 		notes: annotations.notes,
-		// Quotes and Notes can only be added once the Book is no longer Want to read.
-		canAnnotate: canAnnotate(status),
 		tags: tagsForBook(db, id),
 		// Every Tag in use, for the "+ tag" suggestions.
 		allTags: allTags(db),
@@ -121,82 +84,26 @@ export const load: PageServerLoad = async ({ params, url }) => {
 	};
 };
 
-/** Apply an operation's mutation, or turn its refusal into a 400. */
-function applyOp(id: number, op: OpResult) {
-	if (!op.ok) return fail(400, { error: op.error });
-	applyReadMutation(db, id, op.mutation);
-}
-
 export const actions: Actions = {
-	start: ({ params }) => {
+	/** Switch one Reading Status on (`on` = 1) or off; the others stay (ADR-0006). */
+	setStatus: async ({ params, request }) => {
 		const id = parseId(params.id);
-		const { reads } = requireBook(id);
-		return applyOp(id, start(reads, todayISO()));
-	},
-
-	finish: async ({ params, request }) => {
-		const id = parseId(params.id);
-		const { reads } = requireBook(id);
+		requireBook(id);
 		const form = await request.formData();
-		return applyOp(
-			id,
-			finish(reads, todayISO(), {
-				endDate: optional(form.get('endDate')) ?? undefined,
-				rating: optionalNumber(form.get('rating')),
-				readBefore: form.get('readBefore') != null
-			})
-		);
+		const key = parseStatusKey(form.get('status'));
+		if (key === null) return fail(400, { error: 'Unknown status.' });
+		setStatus(db, id, key, form.get('on') === '1');
 	},
 
-	abandon: ({ params }) => {
+	/** Rate the Book from its stars (also switches Read it on), or clear the rating. */
+	rate: async ({ params, request }) => {
 		const id = parseId(params.id);
-		const { reads } = requireBook(id);
-		return applyOp(id, abandon(reads, todayISO()));
-	},
-
-	backToWant: ({ params }) => {
-		const id = parseId(params.id);
-		const { reads } = requireBook(id);
-		return applyOp(id, revertToWantToRead(reads));
-	},
-
-	logPast: async ({ params, request }) => {
-		const id = parseId(params.id);
-		const { reads } = requireBook(id);
+		requireBook(id);
 		const form = await request.formData();
-		return applyOp(
-			id,
-			logPastFinished(reads, {
-				endDate: optional(form.get('endDate')) ?? todayISO(),
-				rating: optionalNumber(form.get('rating')),
-				readBefore: form.get('readBefore') != null
-			})
-		);
-	},
-
-	editRead: async ({ params, request }) => {
-		const id = parseId(params.id);
-		const { reads } = requireBook(id);
-		const form = await request.formData();
-		const readId = optionalNumber(form.get('readId'));
-		const read = reads.find((r) => r.id === readId);
-		if (!read) return fail(400, { error: 'That Read no longer exists.' });
-
-		const fields: EditReadFields = {};
-		if (form.has('startDate')) fields.startDate = optional(form.get('startDate'));
-		if (form.has('endDate')) fields.endDate = optional(form.get('endDate'));
-		if (form.has('rating')) fields.rating = optionalNumber(form.get('rating'));
-		return applyOp(id, editRead(read, fields));
-	},
-
-	deleteRead: async ({ params, request }) => {
-		const id = parseId(params.id);
-		const { reads } = requireBook(id);
-		const form = await request.formData();
-		const readId = optionalNumber(form.get('readId'));
-		const read = reads.find((r) => r.id === readId);
-		if (!read) return fail(400, { error: 'That Read no longer exists.' });
-		applyReadMutation(db, id, deleteRead(read));
+		const rating = form.get('clear') != null ? null : optionalNumber(form.get('rating'));
+		if (!rateBook(db, id, rating)) {
+			return fail(400, { error: 'Rating must be from ½ to 5 stars, in half-star steps.' });
+		}
 	},
 
 	updateMeta: async ({ params, request }) => {
@@ -267,10 +174,7 @@ export const actions: Actions = {
 
 	addQuote: async ({ params, request }) => {
 		const id = parseId(params.id);
-		const { reads } = requireBook(id);
-		if (!canAnnotate(readingStatus(reads))) {
-			return fail(400, { quoteError: 'Start this Book before adding Quotes.' });
-		}
+		requireBook(id);
 		const form = await request.formData();
 		const text = optional(form.get('text'));
 		if (text === null) return fail(400, { quoteError: 'A Quote needs some text.' });
@@ -308,10 +212,7 @@ export const actions: Actions = {
 
 	addNote: async ({ params, request }) => {
 		const id = parseId(params.id);
-		const { reads } = requireBook(id);
-		if (!canAnnotate(readingStatus(reads))) {
-			return fail(400, { noteError: 'Start this Book before adding Notes.' });
-		}
+		requireBook(id);
 		const form = await request.formData();
 		const body = optional(form.get('body'));
 		if (body === null) return fail(400, { noteError: 'A Note needs some text.' });

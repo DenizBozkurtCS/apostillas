@@ -1,34 +1,33 @@
 /**
- * Pure categorisation of Books into the four Reading Status lists (Reading,
- * Want to read, Finished, Abandoned) that the app's screens show. See
- * GLOSSARY.md for the vocabulary and docs/adr/0005 for the derivation rules.
+ * Pure categorisation of Books into the three Reading Status lists (Reading,
+ * Want to read, Finished) that the app's screens show. See GLOSSARY.md and
+ * docs/adr/0006: statuses are independent, so a Book sits on every list whose
+ * status it has, and on none when it has none.
  *
  * This module is pure: it never touches the database. The server layer reads
- * Books and their Reads and hands them here; the list rules live in one tested
- * place, reusing {@link readingStatus} and {@link isReread} from ./reading.
+ * the Books and hands them here.
  */
 
-import { isReread, readingStatus, type Outcome, type Read } from './reading';
+import type { Statuses } from './reading';
 
-/** The Book metadata each list entry needs. */
+/** The Book data each list entry needs. */
 export interface BookMeta {
 	id: number;
 	title: string;
 	authors: string[];
 	/** Path to the stored cover relative to the data folder, or null. */
 	coverPath: string | null;
-	/** Free-text "why / recommended by"; only shown on Want to read. */
+	/** Free-text "why / recommended by"; shown on Bookstack. */
 	whyRecommended: string | null;
-	/** Date the Book was added (ISO); Bookstack sorts by it. */
+	/** Date the Book was added (ISO). */
 	createdAt: string;
 	/** The Book's Tags (normalised names), alphabetically. */
 	tags: string[];
-}
-
-/** A Book together with all of its Reads, as read from the store. */
-export interface BookWithReads {
-	book: BookMeta;
-	reads: Read[];
+	statuses: Statuses;
+	/** The Book's Rating, ½–5 or null. */
+	rating: number | null;
+	/** Distinct years of the Book's Impressions, for the Books year filter. */
+	impressionYears: number[];
 }
 
 /** Fields common to every list entry: enough to show a card that links to the Book. */
@@ -40,36 +39,23 @@ export interface BaseItem {
 	tags: string[];
 }
 
-export interface ReadingItem extends BaseItem {
-	/** Start date of the open Read. */
-	startDate: string | null;
-}
+export type ReadingItem = BaseItem;
 
 export interface WantToReadItem extends BaseItem {
-	dateAdded: string;
 	whyRecommended: string | null;
 }
 
 export interface FinishedItem extends BaseItem {
-	/** End date of the most recent Finished Read. */
-	finishDate: string | null;
-	/** Rating of the most recent Finished Read, ½–5 or null. */
 	rating: number | null;
-	/** Whether that most recent Finished Read is a Reread. */
-	isReread: boolean;
+	/** Years the Book has Impressions in. */
+	years: number[];
 }
 
-export interface AbandonedItem extends BaseItem {
-	/** End date of the most recent Abandoned Read. */
-	abandonedDate: string | null;
-}
-
-/** The four lists, one per Reading Status. */
+/** The three lists, one per Reading Status. */
 export interface Lists {
 	reading: ReadingItem[];
 	wantToRead: WantToReadItem[];
 	finished: FinishedItem[];
-	abandoned: AbandonedItem[];
 }
 
 function base(book: BookMeta): BaseItem {
@@ -82,92 +68,28 @@ function base(book: BookMeta): BaseItem {
 	};
 }
 
-/** Compare two end dates (nulls sort earliest), ascending; ties broken by id. */
-function compareEnd(a: Read, b: Read): number {
-	const ae = a.endDate ?? '';
-	const be = b.endDate ?? '';
-	if (ae !== be) return ae < be ? -1 : 1;
-	return a.id - b.id;
-}
-
-/** The Read of the given outcome with the most recent end date (tie: newest id). */
-function mostRecent(reads: readonly Read[], outcome: Outcome): Read | null {
-	let best: Read | null = null;
-	for (const r of reads) {
-		if (r.outcome !== outcome) continue;
-		if (best === null || compareEnd(r, best) > 0) best = r;
-	}
-	return best;
-}
-
-/**
- * A Book's current rating: the rating of its most recent Finished Read, or null
- * when it has no Finished Read or that Read is unrated. The Books list and the
- * Book page both show this one.
- */
-export function currentRating(reads: readonly Read[]): number | null {
-	return mostRecent(reads, 'finished')?.rating ?? null;
-}
-
-/** Descending string compare with nulls last; ties broken by bookId descending. */
-function byDateDesc<T extends { bookId: number }>(date: (i: T) => string | null) {
-	return (a: T, b: T): number => {
-		const ad = date(a) ?? '';
-		const bd = date(b) ?? '';
-		if (ad !== bd) return ad < bd ? 1 : -1;
-		return b.bookId - a.bookId;
+/** Most recently switched on first; ties broken by newest Book first. */
+function bySinceDesc(since: (b: BookMeta) => string | null) {
+	return (a: BookMeta, b: BookMeta): number => {
+		const as = since(a) ?? '';
+		const bs = since(b) ?? '';
+		if (as !== bs) return as < bs ? 1 : -1;
+		return b.id - a.id;
 	};
 }
 
 /**
- * Sort every Book into its Reading Status list and attach the per-list details
- * each screen shows, each in its default order: Reading by most recently
- * started, Want to read by most recently added, Finished and Abandoned by most
- * recently ended.
+ * Put every Book on each list whose status it has, each list in its default
+ * order: most recently switched on first ("recently started", "recently
+ * added", "recently finished").
  */
-export function buildLists(input: readonly BookWithReads[]): Lists {
-	const reading: ReadingItem[] = [];
-	const wantToRead: WantToReadItem[] = [];
-	const finished: FinishedItem[] = [];
-	const abandoned: AbandonedItem[] = [];
+export function buildLists(input: readonly BookMeta[]): Lists {
+	const on = (key: keyof Statuses) =>
+		input.filter((b) => b.statuses[key] !== null).sort(bySinceDesc((b) => b.statuses[key]));
 
-	for (const { book, reads } of input) {
-		switch (readingStatus(reads)) {
-			case 'Reading':
-				reading.push({
-					...base(book),
-					startDate: reads.find((r) => r.outcome === 'open')?.startDate ?? null
-				});
-				break;
-			case 'Want to read':
-				wantToRead.push({
-					...base(book),
-					dateAdded: book.createdAt,
-					whyRecommended: book.whyRecommended
-				});
-				break;
-			case 'Finished': {
-				const latest = mostRecent(reads, 'finished')!;
-				finished.push({
-					...base(book),
-					finishDate: latest.endDate,
-					rating: currentRating(reads),
-					isReread: isReread(latest, reads)
-				});
-				break;
-			}
-			case 'Abandoned': {
-				const latest = mostRecent(reads, 'abandoned')!;
-				abandoned.push({ ...base(book), abandonedDate: latest.endDate });
-				break;
-			}
-		}
-	}
-
-	reading.sort(byDateDesc((i) => i.startDate));
-	wantToRead.sort(byDateDesc((i) => i.dateAdded));
-	finished.sort(byDateDesc((i) => i.finishDate));
-	abandoned.sort(byDateDesc((i) => i.abandonedDate));
-
-	return { reading, wantToRead, finished, abandoned };
+	return {
+		reading: on('reading').map(base),
+		wantToRead: on('want').map((b) => ({ ...base(b), whyRecommended: b.whyRecommended })),
+		finished: on('finished').map((b) => ({ ...base(b), rating: b.rating, years: b.impressionYears }))
+	};
 }

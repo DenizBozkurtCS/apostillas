@@ -1,13 +1,13 @@
 <!--
 	A small line icon for a Reading Status: bookmark (Want to read / Bookstack),
-	open book (Reading), check (Finished), crossed circle (Abandoned). Decorative:
+	open book (Reading), check (Finished). Decorative:
 	the button or link around it carries the label.
 -->
 <script lang="ts">
 	let {
 		status,
 		size = 18
-	}: { status: 'want' | 'reading' | 'finished' | 'abandoned'; size?: number } = $props();
+	}: { status: 'want' | 'reading' | 'finished'; size?: number } = $props();
 </script>
 
 <svg
@@ -27,10 +27,7 @@
 	{:else if status === 'reading'}
 		<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z" />
 		<path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z" />
-	{:else if status === 'finished'}
-		<path d="M20 6L9 17l-5-5" />
 	{:else}
-		<circle cx="12" cy="12" r="9" />
-		<path d="M5.6 5.6l12.8 12.8" />
+		<path d="M20 6L9 17l-5-5" />
 	{/if}
 </svg>

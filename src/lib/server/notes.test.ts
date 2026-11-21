@@ -3,7 +3,7 @@ import Database from 'better-sqlite3';
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import * as schema from './db/schema';
-import { books, notes, quotes, reads } from './db/schema';
+import { books, notes, quotes } from './db/schema';
 import { annotatableBooks, canAnnotateBook, loadFeed } from './notes';
 
 type TestDb = BetterSQLite3Database<typeof schema>;
@@ -21,14 +21,6 @@ function book(db: TestDb, title: string): number {
 		.insert(books)
 		.values({ title, authors: JSON.stringify(['An Author']) })
 		.returning({ id: books.id })
-		.get().id;
-}
-
-function read(db: TestDb, bookId: number, over: Partial<typeof reads.$inferInsert>): number {
-	return db
-		.insert(reads)
-		.values({ bookId, outcome: 'finished', ...over })
-		.returning({ id: reads.id })
 		.get().id;
 }
 
@@ -56,23 +48,18 @@ describe('loadFeed', () => {
 });
 
 describe('annotatableBooks', () => {
-	it('offers every Book except Want to read ones, by title', () => {
+	it('offers every Book, whatever its status, by title', () => {
 		const db = testDb();
-		book(db, 'Zed (want to read)');
+		book(db, 'Zed');
 		const reading = book(db, 'Reading one');
-		read(db, reading, { outcome: 'open', startDate: '2026-11-01' });
-		const abandoned = book(db, 'Abandoned one');
-		read(db, abandoned, { outcome: 'abandoned', endDate: '2026-10-01' });
+		db.update(books).set({ readingSince: '2026-11-01T00:00:00.000Z' }).run();
 
-		expect(annotatableBooks(db).map((b) => b.title)).toEqual(['Abandoned one', 'Reading one']);
+		expect(annotatableBooks(db).map((b) => b.title)).toEqual(['Reading one', 'Zed']);
 		expect(canAnnotateBook(db, reading)).toBe(true);
 	});
 
-
-	it('refuses a Want to read Book or one that does not exist', () => {
+	it('refuses a Book that does not exist', () => {
 		const db = testDb();
-		const want = book(db, 'Want');
-		expect(canAnnotateBook(db, want)).toBe(false);
 		expect(canAnnotateBook(db, 999)).toBe(false);
 	});
 });

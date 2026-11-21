@@ -4,7 +4,7 @@ import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { eq } from 'drizzle-orm';
 import * as schema from './db/schema';
-import { books, reads, shelfBooks } from './db/schema';
+import { books, shelfBooks } from './db/schema';
 import {
 	addBookToShelf,
 	arrangeShelf,
@@ -90,14 +90,13 @@ describe('Shelves', () => {
 		expect(names(db)).toEqual(['B', 'C', 'A']);
 	});
 
-	it('keeps Books in the order they were added, once each, with ratings for Finished Books', () => {
+	it('keeps Books in the order they were added, once each, with their Ratings', () => {
 		const db = testDb();
 		createShelf(db, 'S');
 		const s = idOf(db, 's');
 		const dune = book(db, 'Dune');
 		const emma = book(db, 'Emma');
-		db.insert(reads).values({ bookId: dune, outcome: 'finished', endDate: '2026-01-01', rating: 4.5 }).run();
-		db.insert(reads).values({ bookId: emma, outcome: 'open', startDate: '2026-01-01' }).run();
+		db.update(books).set({ rating: 4.5 }).where(eq(books.id, dune)).run();
 		addBookToShelf(db, s, emma);
 		addBookToShelf(db, s, dune);
 		addBookToShelf(db, s, emma);

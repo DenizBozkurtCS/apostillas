@@ -5,7 +5,7 @@ import * as schema from './schema';
 
 const sqlite = new Database(dbPath(ensureDataDir()));
 sqlite.pragma('journal_mode = WAL');
-// Enforce the cascades: Book → Reads/Quotes/Notes/Tags/Shelf entries, Shelf → entries.
+// Enforce the cascades: Book → Impressions/Quotes/Notes/Tags/Shelf entries, Shelf → entries.
 sqlite.pragma('foreign_keys = ON');
 
 export const db = drizzle(sqlite, { schema });

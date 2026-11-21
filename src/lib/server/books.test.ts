@@ -7,7 +7,7 @@ import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { eq } from 'drizzle-orm';
 import * as schema from './db/schema';
-import { books, reads } from './db/schema';
+import { books } from './db/schema';
 import { addBook, addBookManually } from './books';
 import type { BookSearchResult } from './booksearch';
 
@@ -69,8 +69,8 @@ describe('addBook', () => {
 		expect(row.pageCount).toBe(412);
 		expect(row.whyRecommended).toBe('Recommended by a friend');
 
-		// A new Book has no Reads, so it is Want to read (ADR-0005).
-		expect(db.select().from(reads).where(eq(reads.bookId, bookId)).all()).toEqual([]);
+		// The Add page sets the starting status separately (setInitialStatus).
+		expect([row.wantSince, row.readingSince, row.finishedSince, row.rating]).toEqual([null, null, null, null]);
 
 		// The cover was downloaded into the data folder and recorded.
 		expect(row.coverPath).toBeTruthy();
@@ -224,8 +224,8 @@ describe('addBookManually', () => {
 		// No work ID: it did not come from a search provider.
 		expect(row.workId).toBeNull();
 
-		// A new Book has no Reads, so it is Want to read (ADR-0005).
-		expect(db.select().from(reads).where(eq(reads.bookId, bookId)).all()).toEqual([]);
+		// The Add page sets the starting status separately (setInitialStatus).
+		expect([row.wantSince, row.readingSince, row.finishedSince, row.rating]).toEqual([null, null, null, null]);
 
 		// The uploaded cover was stored in the data folder and recorded.
 		expect(row.coverPath).toBeTruthy();

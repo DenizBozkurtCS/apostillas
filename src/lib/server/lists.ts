@@ -1,70 +1,50 @@
 /**
- * The store-facing side of the four Reading Status lists. Reads every Book and
- * its Reads from the database, parses the stored shapes into the domain types,
- * and hands them to the pure {@link buildLists} so the list rules stay in one
- * tested place. See src/lib/domain/lists.ts.
+ * The store-facing side of the three Reading Status lists. Reads every Book
+ * with its Tags and Impression years, parses the stored shapes into the domain
+ * types, and hands them to the pure {@link buildLists}. See
+ * src/lib/domain/lists.ts.
  */
 
-import { buildLists, type BookWithReads, type Lists } from '../domain/lists';
-import type { Read } from '../domain/reading';
+import { buildLists, type BookMeta, type Lists } from '../domain/lists';
 import type { Db } from './books';
-import { bookTags, books, reads } from './db/schema';
+import { parseAuthors } from './books';
+import { bookTags, books, impressions } from './db/schema';
 
-/** Parse a Book's stored JSON author array, tolerating bad data. */
-function parseAuthors(json: string): string[] {
-	try {
-		const parsed = JSON.parse(json);
-		if (Array.isArray(parsed)) return parsed.filter((a): a is string => typeof a === 'string');
-	} catch {
-		/* fall through */
-	}
-	return [];
-}
-
-/** Build the four lists from the whole store. Single-user, so reading all rows is fine. */
+/** Build the three lists from the whole store. Single-user, so reading all rows is fine. */
 export function getLists(db: Db): Lists {
-	return buildLists(loadBooksWithReads(db));
+	return buildLists(loadLibrary(db));
 }
 
-/** Every Book with its Reads, parsed into the domain shapes. */
-export function loadBooksWithReads(db: Db): BookWithReads[] {
+function groupBy<T, V>(rows: readonly T[], key: (r: T) => number, value: (r: T) => V): Map<number, V[]> {
+	const map = new Map<number, V[]>();
+	for (const r of rows) {
+		const list = map.get(key(r));
+		if (list) list.push(value(r));
+		else map.set(key(r), [value(r)]);
+	}
+	return map;
+}
+
+/** Every Book in the library, parsed into the domain shape. */
+export function loadLibrary(db: Db): BookMeta[] {
 	const bookRows = db.select().from(books).all();
-	const readRows = db.select().from(reads).all();
-	const tagRows = db.select().from(bookTags).all();
-
-	const tagsByBook = new Map<number, string[]>();
-	for (const t of tagRows) {
-		const list = tagsByBook.get(t.bookId);
-		if (list) list.push(t.name);
-		else tagsByBook.set(t.bookId, [t.name]);
-	}
-	for (const list of tagsByBook.values()) list.sort();
-
-	const readsByBook = new Map<number, Read[]>();
-	for (const r of readRows) {
-		const read: Read = {
-			id: r.id,
-			startDate: r.startDate,
-			endDate: r.endDate,
-			outcome: r.outcome,
-			rating: r.rating,
-			readBefore: r.readBefore
-		};
-		const list = readsByBook.get(r.bookId);
-		if (list) list.push(read);
-		else readsByBook.set(r.bookId, [read]);
-	}
+	const tagsByBook = groupBy(db.select().from(bookTags).all(), (t) => t.bookId, (t) => t.name);
+	const yearsByBook = groupBy(
+		db.select({ bookId: impressions.bookId, date: impressions.date }).from(impressions).all(),
+		(i) => i.bookId,
+		(i) => Number(i.date.slice(0, 4))
+	);
 
 	return bookRows.map((b) => ({
-		book: {
-			id: b.id,
-			title: b.title,
-			authors: parseAuthors(b.authors),
-			coverPath: b.coverPath,
-			whyRecommended: b.whyRecommended,
-			createdAt: b.createdAt,
-			tags: tagsByBook.get(b.id) ?? []
-		},
-		reads: readsByBook.get(b.id) ?? []
+		id: b.id,
+		title: b.title,
+		authors: parseAuthors(b.authors),
+		coverPath: b.coverPath,
+		whyRecommended: b.whyRecommended,
+		createdAt: b.createdAt,
+		tags: (tagsByBook.get(b.id) ?? []).sort(),
+		statuses: { want: b.wantSince, reading: b.readingSince, finished: b.finishedSince },
+		rating: b.rating,
+		impressionYears: [...new Set((yearsByBook.get(b.id) ?? []).filter((y) => y > 0))]
 	}));
 }

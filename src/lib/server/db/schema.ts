@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { integer, primaryKey, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 /**
  * A Book is a work as its author wrote it (see GLOSSARY.md), not a specific
@@ -20,6 +20,16 @@ export const books = sqliteTable('books', {
 	isbn: text('isbn'),
 	pageCount: integer('page_count'),
 	coverPath: text('cover_path'),
+	/**
+	 * Reading Statuses (ADR-0006): each is on when it holds the moment it was
+	 * switched on (SQLite timestamp), off when null. The moment only orders the
+	 * lists and is never shown.
+	 */
+	wantSince: text('want_since'),
+	readingSince: text('reading_since'),
+	finishedSince: text('finished_since'),
+	/** The Book's Rating, ½ to 5 in half-star steps: whichever was set most recently. */
+	rating: real('rating'),
 	/** Date added. */
 	createdAt: text('created_at')
 		.notNull()
@@ -30,23 +40,24 @@ export const books = sqliteTable('books', {
 );
 
 /**
- * A Read is one pass through a Book. Reading Status and Reread are derived from
- * a Book's Reads, never stored (ADR-0005); see src/lib/domain/reading.ts.
- * Deleting a Book cascades to its Reads.
+ * An Impression: a dated record of reading a Book, with an optional Rating and
+ * short review, and Reread / Didn't finish markers the reader ticks (see
+ * GLOSSARY.md). Impressions never change a Book's Reading Statuses (ADR-0006).
+ * Deleting a Book cascades.
  */
-export const reads = sqliteTable('reads', {
+export const impressions = sqliteTable('impressions', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	bookId: integer('book_id')
 		.notNull()
 		.references(() => books.id, { onDelete: 'cascade' }),
-	/** Null for a logged past Read with no recorded start. */
-	startDate: text('start_date'),
-	endDate: text('end_date'),
-	outcome: text('outcome', { enum: ['open', 'finished', 'abandoned'] }).notNull(),
-	/** ½ to 5 in half-star steps, or null. SQLite keeps 4.5 as a REAL in this INTEGER column. */
-	rating: integer('rating'),
-	/** The reader ticked "I've read this before". */
-	readBefore: integer('read_before', { mode: 'boolean' }).notNull().default(false),
+	/** ISO day (`YYYY-MM-DD`). */
+	date: text('date').notNull(),
+	/** ½ to 5 in half-star steps, or null. */
+	rating: real('rating'),
+	/** Short plain-text review, or null. */
+	review: text('review'),
+	reread: integer('reread', { mode: 'boolean' }).notNull().default(false),
+	didNotFinish: integer('did_not_finish', { mode: 'boolean' }).notNull().default(false),
 	createdAt: text('created_at')
 		.notNull()
 		.default(sql`(CURRENT_TIMESTAMP)`)
@@ -54,7 +65,7 @@ export const reads = sqliteTable('reads', {
 
 /**
  * A Quote is a passage copied verbatim from a Book. It belongs to the Book,
- * not to any Read; deleting the Book cascades.
+ * not to any Impression; deleting the Book cascades.
  */
 export const quotes = sqliteTable('quotes', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
@@ -71,7 +82,7 @@ export const quotes = sqliteTable('quotes', {
 
 /**
  * A Note is the reader's own writing about a Book (Markdown body). It belongs
- * to the Book, not to any Read; cascades with the Book.
+ * to the Book; cascades with the Book.
  */
 export const notes = sqliteTable('notes', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
