@@ -32,7 +32,7 @@ export const actions: Actions = {
 		const bookId = optionalNumber(form.get('bookId'));
 		if (bookId === null) return fail(400, { noteError: 'Choose which Book the Note is about.' });
 		if (!canAnnotateBook(db, bookId)) {
-			return fail(400, { noteError: 'Start that Book before adding Notes.' });
+			return fail(400, { noteError: 'That Book no longer exists.' });
 		}
 		const body = optional(form.get('body'));
 		if (body === null) return fail(400, { noteError: 'A Note needs some text.' });
@@ -44,7 +44,7 @@ export const actions: Actions = {
 		const bookId = optionalNumber(form.get('bookId'));
 		if (bookId === null) return fail(400, { quoteError: 'Choose which Book the Quote is from.' });
 		if (!canAnnotateBook(db, bookId)) {
-			return fail(400, { quoteError: 'Start that Book before adding Quotes.' });
+			return fail(400, { quoteError: 'That Book no longer exists.' });
 		}
 		const text = optional(form.get('text'));
 		if (text === null) return fail(400, { quoteError: 'A Quote needs some text.' });

@@ -17,6 +17,7 @@ import {
 } from '../domain/impressions';
 import { setStatus } from './book';
 import type { Db } from './books';
+import { parseAuthors } from './books';
 import { books, impressions } from './db/schema';
 
 /** Read an Impression form: `date`, `rating`, `review`, and the two tick boxes. */
@@ -44,6 +45,36 @@ function toImpression(r: typeof impressions.$inferSelect): Impression {
 		reread: r.reread,
 		didNotFinish: r.didNotFinish
 	};
+}
+
+/** An Impression with the Book it is about, for My Reading. */
+export interface FeedImpression extends Impression {
+	book: { id: number; title: string; authors: string[]; coverPath: string | null };
+}
+
+/** Every Impression in the library with its Book, newest first. */
+export function loadAllImpressions(db: Db): FeedImpression[] {
+	const rows = db
+		.select({
+			impression: impressions,
+			title: books.title,
+			authors: books.authors,
+			coverPath: books.coverPath
+		})
+		.from(impressions)
+		.innerJoin(books, eq(books.id, impressions.bookId))
+		.all();
+	return newestFirst(
+		rows.map((r) => ({
+			...toImpression(r.impression),
+			book: {
+				id: r.impression.bookId,
+				title: r.title,
+				authors: parseAuthors(r.authors),
+				coverPath: r.coverPath
+			}
+		}))
+	);
 }
 
 /** A Book's Impressions, newest first. */

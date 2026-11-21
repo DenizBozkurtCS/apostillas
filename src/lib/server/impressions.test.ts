@@ -10,6 +10,7 @@ import {
 	deleteImpression,
 	editImpression,
 	impressionFromForm,
+	loadAllImpressions,
 	loadImpressions
 } from './impressions';
 
@@ -104,6 +105,20 @@ describe('Impressions', () => {
 		deleteImpression(db, emma, a);
 		expect(loadImpressions(db, dune)).toHaveLength(1);
 		expect(bookRow(db, emma).rating).toBeNull();
+	});
+});
+
+describe('loadAllImpressions', () => {
+	it('lists every Impression with its Book, newest first', () => {
+		const db = testDb();
+		const dune = book(db);
+		const emma = book(db, 'Emma');
+		addImpression(db, dune, { ...input, date: '2025-01-01' });
+		addImpression(db, emma, { ...input, date: '2026-03-01', review: 'Witty' });
+		expect(loadAllImpressions(db).map((i) => [i.date, i.book.title, i.book.authors])).toEqual([
+			['2026-03-01', 'Emma', ['A']],
+			['2025-01-01', 'Dune', ['A']]
+		]);
 	});
 });
 

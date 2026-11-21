@@ -1,8 +1,7 @@
 <!--
 	App shell. The three Reading Status lists live under a "Library" dropdown
-	(Reading, Bookstack, Books), then the Bookcase (the reader's
-	Shelves) and Notes & Quotes. On the
-	right, a book search bar submits to /add, which shows the Open Library results.
+	(Reading, Bookstack, Books), then the Bookcase (the reader's Shelves), My
+	Reading (every Impression) and Notes & Quotes. On the right, a book search bar submits to /add, which shows the Open Library results.
 	The brand links to the start page (/). The dropdown is a disclosure: a button
 	with aria-expanded and a list of links. It closes on Escape, on a click
 	outside, and after navigating. On phones the whole nav folds into one
@@ -41,6 +40,7 @@
 
 	const others = [
 		{ href: '/bookcase', label: 'Bookcase' },
+		{ href: '/my-reading', label: 'My Reading' },
 		{ href: '/notes', label: 'Notes & Quotes' }
 	] as const;
 	const currentOther = $derived(others.find((o) => page.url.pathname.startsWith(o.href)));
@@ -115,16 +115,13 @@
 						</ul>
 					{/if}
 				</div>
-				<a
-					class="nav-item"
-					href="/bookcase"
-					aria-current={page.url.pathname.startsWith('/bookcase') ? 'page' : undefined}>Bookcase</a
-				>
-				<a
-					class="nav-item"
-					href="/notes"
-					aria-current={page.url.pathname.startsWith('/notes') ? 'page' : undefined}>Notes &amp; Quotes</a
-				>
+				{#each others as o (o.href)}
+					<a
+						class="nav-item"
+						href={o.href}
+						aria-current={page.url.pathname.startsWith(o.href) ? 'page' : undefined}>{o.label}</a
+					>
+				{/each}
 			</nav>
 			<!-- Phones: everything in the nav, in one dropdown. -->
 			<div class="phone-nav" bind:this={phoneMenu}>
