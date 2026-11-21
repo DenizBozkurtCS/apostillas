@@ -1,6 +1,6 @@
 # A Shelf's page: adding, removing and arranging Books
 
-Status: ready-for-human
+Status: closed
 Blocked by: 01
 
 ## Acceptance criteria
@@ -13,3 +13,5 @@ Blocked by: 01
 - An empty Shelf says "No books yet" and offers + Add books.
 
 ## Comments
+
+**RALPH (2026-11-21):** Done: Shelf page with add, remove and arrange
