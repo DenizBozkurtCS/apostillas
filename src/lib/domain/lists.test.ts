@@ -21,6 +21,7 @@ function entry(
 			coverPath: null,
 			whyRecommended: null,
 			createdAt: '2026-01-01',
+			tags: [],
 			...over
 		},
 		reads

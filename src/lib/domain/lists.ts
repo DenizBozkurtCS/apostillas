@@ -19,8 +19,10 @@ export interface BookMeta {
 	coverPath: string | null;
 	/** Free-text "why / recommended by"; only shown on Want to read. */
 	whyRecommended: string | null;
-	/** Date the Book was added (ISO), shown on Want to read. */
+	/** Date the Book was added (ISO); Bookstack sorts by it. */
 	createdAt: string;
+	/** The Book's Tags (normalised names), alphabetically. */
+	tags: string[];
 }
 
 /** A Book together with all of its Reads, as read from the store. */
@@ -35,9 +37,13 @@ export interface BaseItem {
 	title: string;
 	authors: string[];
 	coverPath: string | null;
+	tags: string[];
 }
 
-export interface ReadingItem extends BaseItem {}
+export interface ReadingItem extends BaseItem {
+	/** Start date of the open Read. */
+	startDate: string | null;
+}
 
 export interface WantToReadItem extends BaseItem {
 	dateAdded: string;
@@ -67,7 +73,13 @@ export interface Lists {
 }
 
 function base(book: BookMeta): BaseItem {
-	return { bookId: book.id, title: book.title, authors: book.authors, coverPath: book.coverPath };
+	return {
+		bookId: book.id,
+		title: book.title,
+		authors: book.authors,
+		coverPath: book.coverPath,
+		tags: book.tags
+	};
 }
 
 /** Compare two end dates (nulls sort earliest), ascending; ties broken by id. */
@@ -109,8 +121,9 @@ function byDateDesc<T extends { bookId: number }>(date: (i: T) => string | null)
 
 /**
  * Sort every Book into its Reading Status list and attach the per-list details
- * each screen shows. Finished is newest-finish-first; Want to read and
- * Abandoned are newest-first too; Reading is newest-added-first.
+ * each screen shows, each in its default order: Reading by most recently
+ * started, Want to read by most recently added, Finished and Abandoned by most
+ * recently ended.
  */
 export function buildLists(input: readonly BookWithReads[]): Lists {
 	const reading: ReadingItem[] = [];
@@ -121,7 +134,10 @@ export function buildLists(input: readonly BookWithReads[]): Lists {
 	for (const { book, reads } of input) {
 		switch (readingStatus(reads)) {
 			case 'Reading':
-				reading.push(base(book));
+				reading.push({
+					...base(book),
+					startDate: reads.find((r) => r.outcome === 'open')?.startDate ?? null
+				});
 				break;
 			case 'Want to read':
 				wantToRead.push({
@@ -148,7 +164,7 @@ export function buildLists(input: readonly BookWithReads[]): Lists {
 		}
 	}
 
-	reading.sort((a, b) => b.bookId - a.bookId);
+	reading.sort(byDateDesc((i) => i.startDate));
 	wantToRead.sort(byDateDesc((i) => i.dateAdded));
 	finished.sort(byDateDesc((i) => i.finishDate));
 	abandoned.sort(byDateDesc((i) => i.abandonedDate));

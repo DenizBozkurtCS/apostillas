@@ -1,8 +1,9 @@
 <!--
-	One Book on a shelf: cover, title, and author, linking to the Book page. The
-	optional `detail` snippet renders list-specific extras (date added and why,
-	finish date and rating, date abandoned). Books without a cover get a
-	placeholder that shows the title, so the shelf still reads.
+	One Book on a shelf: just its cover, linking to the Book page. The title and
+	author show as a hover tooltip and are in the link for screen readers. The
+	optional `detail` snippet renders list-specific extras under the cover (the
+	Books list's rating and Reread marker). Books without a cover get a
+	placeholder that shows the title and author, so the shelf still reads.
 -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
@@ -25,7 +26,8 @@
 </script>
 
 <li class="card">
-	<a class="link" href={`/books/${bookId}`}>
+	<a class="link" href={`/books/${bookId}`} title={`${title} — ${byline}`}>
+		<span class="visually-hidden">{title}, {byline}</span>
 		{#if coverPath}
 			<img class="cover" src={`/${coverPath}`} alt="" width="200" height="300" loading="lazy" />
 		{:else}
@@ -34,8 +36,6 @@
 				<span class="placeholder-author">{byline}</span>
 			</div>
 		{/if}
-		<span class="title">{title}</span>
-		<span class="byline">{byline}</span>
 	</a>
 	{#if detail}
 		<div class="detail">{@render detail()}</div>
@@ -67,7 +67,6 @@
 		box-shadow:
 			0 0 0 1px var(--border),
 			0 2px 6px rgb(0 0 0 / 0.08);
-		margin-bottom: 0.5rem;
 		transition:
 			transform 0.15s,
 			box-shadow 0.15s;
@@ -101,28 +100,8 @@
 		font-size: 0.8rem;
 		color: var(--text-muted);
 	}
-	.title {
-		font-weight: 600;
-		font-size: 0.92rem;
-		line-height: 1.3;
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		line-clamp: 2;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-	}
-	.link:hover .title {
-		color: var(--accent);
-	}
-	.byline {
-		font-size: 0.85rem;
-		color: var(--text-muted);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
 	.detail {
-		margin-top: 0.35rem;
+		margin-top: 0.45rem;
 		font-size: 0.8rem;
 		color: var(--text-muted);
 		display: flex;

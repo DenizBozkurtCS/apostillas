@@ -8,7 +8,7 @@
 import { buildLists, type BookWithReads, type Lists } from '../domain/lists';
 import type { Read } from '../domain/reading';
 import type { Db } from './books';
-import { books, reads } from './db/schema';
+import { bookTags, books, reads } from './db/schema';
 
 /** Parse a Book's stored JSON author array, tolerating bad data. */
 function parseAuthors(json: string): string[] {
@@ -30,6 +30,15 @@ export function getLists(db: Db): Lists {
 export function loadBooksWithReads(db: Db): BookWithReads[] {
 	const bookRows = db.select().from(books).all();
 	const readRows = db.select().from(reads).all();
+	const tagRows = db.select().from(bookTags).all();
+
+	const tagsByBook = new Map<number, string[]>();
+	for (const t of tagRows) {
+		const list = tagsByBook.get(t.bookId);
+		if (list) list.push(t.name);
+		else tagsByBook.set(t.bookId, [t.name]);
+	}
+	for (const list of tagsByBook.values()) list.sort();
 
 	const readsByBook = new Map<number, Read[]>();
 	for (const r of readRows) {
@@ -53,7 +62,8 @@ export function loadBooksWithReads(db: Db): BookWithReads[] {
 			authors: parseAuthors(b.authors),
 			coverPath: b.coverPath,
 			whyRecommended: b.whyRecommended,
-			createdAt: b.createdAt
+			createdAt: b.createdAt,
+			tags: tagsByBook.get(b.id) ?? []
 		},
 		reads: readsByBook.get(b.id) ?? []
 	}));
