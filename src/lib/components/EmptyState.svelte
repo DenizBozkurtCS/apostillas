@@ -3,12 +3,24 @@
 	let { message }: { message: string } = $props();
 </script>
 
-<p class="empty">
-	{message} <a href="/add">Add a book</a>.
-</p>
+<div class="empty">
+	<p>{message}</p>
+	<a class="button primary" href="/add">Add a book</a>
+</div>
 
 <style>
 	.empty {
-		color: #555;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 1rem;
+		padding: 3.5rem 1.5rem;
+		border: 1px dashed var(--border-strong);
+		border-radius: var(--radius-lg);
+		text-align: center;
+	}
+	p {
+		margin: 0;
+		color: var(--text-muted);
 	}
 </style>

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import BookCard from '#lib/components/BookCard.svelte';
-	import EmptyState from '#lib/components/EmptyState.svelte';
-	import { formatDay } from '#lib/format';
+	import Shelf from '#lib/components/Shelf.svelte';
 	import Stars from '#lib/components/Stars.svelte';
+	import { formatDay } from '#lib/format';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -12,55 +12,32 @@
 	<title>Finished · apostillas</title>
 </svelte:head>
 
-<h1>Finished</h1>
-
-{#if data.finished.length === 0}
-	<EmptyState message="You haven't finished anything yet." />
-{:else}
-	<ul class="list">
-		{#each data.finished as item (item.bookId)}
-			<BookCard
-				bookId={item.bookId}
-				title={item.title}
-				authors={item.authors}
-				coverPath={item.coverPath}
-			>
-				{#snippet detail()}
-					<span class="finished">
-						Finished{#if item.finishDate}&nbsp;{formatDay(item.finishDate)}{/if}
-						{#if item.isReread}
-							<span class="reread" title="Reread">↻ Reread</span>
-						{/if}
-					</span>
-					{#if item.rating != null}
-						<span class="rating"><Stars rating={item.rating} /></span>
+<Shelf title="Finished" count={data.finished.length} empty="You haven't finished anything yet.">
+	{#each data.finished as item (item.bookId)}
+		<BookCard
+			bookId={item.bookId}
+			title={item.title}
+			authors={item.authors}
+			coverPath={item.coverPath}
+		>
+			{#snippet detail()}
+				{#if item.rating != null}
+					<Stars rating={item.rating} />
+				{/if}
+				<span>
+					{item.finishDate ? formatDay(item.finishDate) : 'Date unknown'}
+					{#if item.isReread}
+						· <span class="reread" title="Reread">↻ Reread</span>
 					{/if}
-				{/snippet}
-			</BookCard>
-		{/each}
-	</ul>
-{/if}
+				</span>
+			{/snippet}
+		</BookCard>
+	{/each}
+</Shelf>
 
 <style>
-	.list {
-		list-style: none;
-		padding: 0;
-		margin: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-	.finished {
-		color: #666;
-		display: inline-flex;
-		gap: 0.5rem;
-		align-items: center;
-	}
 	.reread {
-		color: #1a56db;
+		color: var(--accent);
 		font-weight: 600;
-	}
-	.rating {
-		display: block;
 	}
 </style>

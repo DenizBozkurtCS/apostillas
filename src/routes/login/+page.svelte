@@ -12,53 +12,47 @@
 	<title>Sign in · apostillas</title>
 </svelte:head>
 
-<h1>apostillas</h1>
-<p>This library is private. Enter the password to continue.</p>
+<div class="card">
+	<h1>apostillas</h1>
+	<p class="muted">This library is private. Enter the password to continue.</p>
 
-<form method="POST" class="login">
-	<label>
-		<span>Password</span>
-		<!-- svelte-ignore a11y_autofocus -->
-		<input
-			name="password"
-			type="password"
-			autocomplete="current-password"
-			autofocus
-			required
-		/>
-	</label>
-	{#if form?.error}
-		<p class="error" role="alert">{form.error}</p>
-	{/if}
-	<button type="submit">Sign in</button>
-</form>
+	<form method="POST" class="stack">
+		<label class="field">
+			<span>Password</span>
+			<!-- svelte-ignore a11y_autofocus -->
+			<input
+				name="password"
+				type="password"
+				autocomplete="current-password"
+				autofocus
+				required
+			/>
+		</label>
+		{#if form?.error}
+			<p class="error" role="alert">{form.error}</p>
+		{/if}
+		<button type="submit" class="primary">Sign in</button>
+	</form>
+</div>
 
 <style>
-	.login {
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-		max-width: 20rem;
+	.card {
+		width: 100%;
+		max-width: 22rem;
+		padding: 2rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		background: var(--surface-raised);
+		box-shadow: var(--shadow);
 	}
-	label {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
+	h1 {
+		font-size: 1.4rem;
 	}
-	label span {
-		font-weight: 600;
+	p {
+		margin: 0.4rem 0 1.5rem;
+		font-size: 0.9rem;
 	}
-	input {
-		padding: 0.5rem;
-		font-size: 1rem;
-	}
-	.error {
-		color: #b91c1c;
-		margin: 0;
-	}
-	button {
-		align-self: flex-start;
-		padding: 0.5rem 1rem;
-		font-weight: 600;
+	.stack > button {
+		align-self: stretch;
 	}
 </style>

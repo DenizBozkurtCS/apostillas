@@ -24,12 +24,12 @@
 		white-space: nowrap;
 	}
 	.empty {
-		color: #d6d6d6;
+		color: var(--star-empty);
 	}
 	.filled {
 		position: absolute;
 		inset: 0 auto 0 0;
 		overflow: hidden;
-		color: #b8860b;
+		color: var(--star);
 	}
 </style>

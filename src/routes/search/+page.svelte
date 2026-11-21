@@ -8,75 +8,71 @@
 	<title>Search · apostillas</title>
 </svelte:head>
 
-<h1>Search</h1>
+<div class="search-page">
+	<div class="page-head">
+		<h1>Search</h1>
+	</div>
 
-<form method="GET" class="search">
-	<label>
-		<span>Search your Quotes and Notes</span>
-		<input name="q" type="search" value={data.q} placeholder="e.g. mind-killer" />
-	</label>
-	<button type="submit">Search</button>
-</form>
+	<form method="GET" class="search" role="search">
+		<label class="visually-hidden" for="search-q">Search your Quotes and Notes</label>
+		<input
+			id="search-q"
+			name="q"
+			type="search"
+			value={data.q}
+			placeholder="Search your Quotes and Notes"
+		/>
+		<button type="submit" class="primary">Search</button>
+	</form>
 
-{#if data.searched}
-	{#if data.hits.length === 0}
-		<p class="empty">No Quotes or Notes match “{data.q}”.</p>
-	{:else}
-		<p class="count">
-			{data.hits.length}
-			{data.hits.length === 1 ? 'result' : 'results'}
-		</p>
-		<ul class="hits">
-			{#each data.hits as hit (hit.kind + hit.refId)}
-				<li>
-					<a class="hit" href="/books/{hit.bookId}">
-						<span class="kind" data-kind={hit.kind}>
-							{hit.kind === 'quote' ? 'Quote' : 'Note'}
-						</span>
-						<!-- Snippet is HTML-escaped server-side with <mark> around matches. -->
-						<span class="snippet">{@html hit.snippetHtml}</span>
-						<span class="book">
-							{hit.bookTitle}{#if hit.bookAuthors.length > 0}
-								<span class="authors"> · {hit.bookAuthors.join(', ')}</span>
-							{/if}
-						</span>
-					</a>
-				</li>
-			{/each}
-		</ul>
+	{#if data.searched}
+		{#if data.hits.length === 0}
+			<p class="muted">No Quotes or Notes match “{data.q}”.</p>
+		{:else}
+			<p class="count">
+				{data.hits.length}
+				{data.hits.length === 1 ? 'result' : 'results'}
+			</p>
+			<ul class="hits">
+				{#each data.hits as hit (hit.kind + hit.refId)}
+					<li>
+						<a class="hit" href="/books/{hit.bookId}">
+							<span class="kind" data-kind={hit.kind}>
+								{hit.kind === 'quote' ? 'Quote' : 'Note'}
+							</span>
+							<!-- Snippet is HTML-escaped server-side with <mark> around matches. -->
+							<span class="snippet">{@html hit.snippetHtml}</span>
+							<span class="book">
+								{hit.bookTitle}{#if hit.bookAuthors.length > 0}
+									<span class="authors"> · {hit.bookAuthors.join(', ')}</span>
+								{/if}
+							</span>
+						</a>
+					</li>
+				{/each}
+			</ul>
+		{/if}
 	{/if}
-{/if}
+</div>
 
 <style>
+	.search-page {
+		max-width: var(--content-narrow);
+		margin: 0 auto;
+	}
 	.search {
 		display: flex;
-		flex-wrap: wrap;
-		align-items: flex-end;
-		gap: 0.75rem;
-		margin-bottom: 1.5rem;
-	}
-	.search label {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-		flex: 1 1 18rem;
-	}
-	.search span {
-		font-weight: 600;
+		gap: 0.5rem;
+		margin-bottom: 1.75rem;
 	}
 	.search input {
-		padding: 0.5rem;
+		flex: 1;
 		font-size: 1rem;
-	}
-	.search button {
-		padding: 0.5rem 1rem;
-		font-size: 1rem;
-	}
-	.empty {
-		color: #555;
+		padding: 0.6rem 0.8rem;
 	}
 	.count {
-		color: #666;
+		color: var(--text-faint);
+		font-size: 0.9rem;
 		margin: 0 0 0.75rem;
 	}
 	.hits {
@@ -85,51 +81,60 @@
 		margin: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: 0.6rem;
 	}
 	.hit {
 		display: block;
-		padding: 0.75rem 1rem;
-		border: 1px solid #e5e5e5;
-		border-radius: 0.5rem;
+		padding: 0.9rem 1.1rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
 		text-decoration: none;
 		color: inherit;
+		transition:
+			border-color 0.12s,
+			background-color 0.12s;
 	}
 	.hit:hover {
-		border-color: #bbb;
-		background: #fafafa;
+		color: inherit;
+		border-color: var(--border-strong);
+		background: var(--surface);
 	}
 	.kind {
 		display: inline-block;
-		font-size: 0.75rem;
-		font-weight: 600;
+		font-size: 0.7rem;
+		font-weight: 650;
 		text-transform: uppercase;
-		letter-spacing: 0.03em;
-		color: #555;
-		background: #eee;
-		border-radius: 0.25rem;
-		padding: 0.1rem 0.4rem;
-		margin-bottom: 0.4rem;
+		letter-spacing: 0.05em;
+		color: var(--text-muted);
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		padding: 0.05rem 0.5rem;
+		margin-bottom: 0.45rem;
 	}
 	.kind[data-kind='note'] {
-		color: #1a56db;
-		background: #e7edfb;
+		color: var(--accent);
+		background: var(--accent-soft);
+		border-color: transparent;
 	}
 	.snippet {
 		display: block;
-		color: #222;
+		line-height: 1.55;
 	}
 	.snippet :global(mark) {
-		background: #fde68a;
+		background: var(--mark);
 		color: inherit;
+		border-radius: 2px;
+		padding: 0 1px;
 	}
 	.book {
 		display: block;
-		margin-top: 0.4rem;
+		margin-top: 0.5rem;
+		font-size: 0.85rem;
 		font-weight: 600;
 	}
 	.authors {
 		font-weight: 400;
-		color: #666;
+		color: var(--text-muted);
 	}
 </style>
