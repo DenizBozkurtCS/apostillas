@@ -11,10 +11,18 @@ import {
 	setBookCoverFromUrl,
 	setStatus,
 	syncBookMetadata,
+	todayISO,
 	updateBookMetadata,
 	type BookDetail
 } from '#lib/server/book';
 import { parseStatusKey } from '#lib/domain/reading';
+import {
+	addImpression,
+	deleteImpression,
+	editImpression,
+	impressionFromForm,
+	loadImpressions
+} from '#lib/server/impressions';
 import {
 	addNote,
 	addQuote,
@@ -76,6 +84,9 @@ export const load: PageServerLoad = async ({ params, url }) => {
 		editionCovers,
 		quotes: annotations.quotes,
 		notes: annotations.notes,
+		impressions: loadImpressions(db, id),
+		// Default date of a new Impression.
+		today: todayISO(),
 		tags: tagsForBook(db, id),
 		// Every Tag in use, for the "+ tag" suggestions.
 		allTags: allTags(db),
@@ -104,6 +115,33 @@ export const actions: Actions = {
 		if (!rateBook(db, id, rating)) {
 			return fail(400, { error: 'Rating must be from ½ to 5 stars, in half-star steps.' });
 		}
+	},
+
+	addImpression: async ({ params, request }) => {
+		const id = parseId(params.id);
+		requireBook(id);
+		const check = impressionFromForm(await request.formData());
+		if (!check.ok) return fail(400, { impressionError: check.error, impressionId: null });
+		addImpression(db, id, check.input);
+	},
+
+	editImpression: async ({ params, request }) => {
+		const id = parseId(params.id);
+		requireBook(id);
+		const form = await request.formData();
+		const impressionId = optionalNumber(form.get('impressionId'));
+		const check = impressionFromForm(form);
+		if (!check.ok) return fail(400, { impressionError: check.error, impressionId });
+		if (impressionId === null || !editImpression(db, id, impressionId, check.input)) {
+			return fail(400, { impressionError: 'That Impression no longer exists.', impressionId: null });
+		}
+	},
+
+	deleteImpression: async ({ params, request }) => {
+		const id = parseId(params.id);
+		requireBook(id);
+		const impressionId = optionalNumber((await request.formData()).get('impressionId'));
+		if (impressionId !== null) deleteImpression(db, id, impressionId);
 	},
 
 	updateMeta: async ({ params, request }) => {

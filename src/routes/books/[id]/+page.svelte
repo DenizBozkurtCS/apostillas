@@ -1,7 +1,7 @@
 <!--
 	The Book page. Reading content comes first: a header with the cover and the
 	Reading Status switches and stars (ADR-0006), a short About, then tabs for
-	Notes and Quotes. Managing
+	Notes, Quotes and Impressions. "Leave an Impression" opens the last one. Managing
 	the Book (details, cover, sync, delete) lives behind the ⋯ menu, in dialogs.
 
 	Forms submit with `enhance`, so the page does not reload and the open tab
@@ -14,6 +14,8 @@
 	import Dialog from '#lib/components/Dialog.svelte';
 	import StatusIcon from '#lib/components/StatusIcon.svelte';
 	import TagEditor from '#lib/components/TagEditor.svelte';
+	import ImpressionFields from '#lib/components/ImpressionFields.svelte';
+	import ImpressionView from '#lib/components/ImpressionView.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -30,12 +32,13 @@
 	/** Star values 5 → ½; drawn reversed so hover fills everything to the left. */
 	const STARS_HIGH_TO_LOW = [...RATING_STEPS].reverse();
 
-	type Tab = 'notes' | 'quotes';
+	type Tab = 'notes' | 'quotes' | 'impressions';
 	type DialogName = 'details' | 'cover' | 'sync' | 'shelves' | 'delete';
 
 	const tabs = $derived<{ id: Tab; label: string; count: number }[]>([
 		{ id: 'notes', label: 'Notes', count: data.notes.length },
-		{ id: 'quotes', label: 'Quotes', count: data.quotes.length }
+		{ id: 'quotes', label: 'Quotes', count: data.quotes.length },
+		{ id: 'impressions', label: 'Impressions', count: data.impressions.length }
 	]);
 
 	let tab = $state<Tab>('notes');
@@ -46,6 +49,8 @@
 	let editing = $state<string | null>(null);
 	let addingQuote = $state(false);
 	let addingNote = $state(false);
+	let addingImpression = $state(false);
+	let tabsEl: HTMLElement | undefined = $state();
 	let dialog = $state<DialogName | null>(null);
 	let menuOpen = $state(false);
 	let menu: HTMLElement | undefined = $state();
@@ -65,6 +70,9 @@
 			tab = 'notes';
 		} else if (form?.quoteError) {
 			tab = 'quotes';
+		} else if (form?.impressionError) {
+			tab = 'impressions';
+			if (form.impressionId != null) editing = `impression-${form.impressionId}`;
 		} else if (form?.metaError) {
 			dialog = 'details';
 		} else if (form?.syncError) {
@@ -101,6 +109,12 @@
 		};
 	}
 
+	/** "Leave an Impression": open the form in the Impressions tab and bring it into view. */
+	function leaveImpression() {
+		tab = 'impressions';
+		addingImpression = true;
+		requestAnimationFrame(() => tabsEl?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+	}
 	function toggleEdit(key: string) {
 		editing = editing === key ? null : key;
 	}
@@ -262,6 +276,7 @@
 					{/if}
 				</form>
 			</div>
+			<button type="button" class="leave" onclick={leaveImpression}>Leave an Impression</button>
 
 			{#if form?.error}
 				<p class="error" role="alert">{form.error}</p>
@@ -287,172 +302,236 @@
 		</section>
 	{/if}
 
-	<section class="tabbed">
-			<div class="tablist" role="tablist" aria-label="Book content" tabindex="-1" onkeydown={onTabKeydown}>
-				{#each tabs as t (t.id)}
-					<button
-						type="button"
-						role="tab"
-						id={`tab-${t.id}`}
-						aria-selected={activeTab === t.id}
-						aria-controls={`panel-${t.id}`}
-						tabindex={activeTab === t.id ? 0 : -1}
-						onclick={() => (tab = t.id)}
+	<section class="tabbed" bind:this={tabsEl}>
+		<div class="tablist" role="tablist" aria-label="Book content" tabindex="-1" onkeydown={onTabKeydown}>
+			{#each tabs as t (t.id)}
+				<button
+					type="button"
+					role="tab"
+					id={`tab-${t.id}`}
+					aria-selected={activeTab === t.id}
+					aria-controls={`panel-${t.id}`}
+					tabindex={activeTab === t.id ? 0 : -1}
+					onclick={() => (tab = t.id)}
+				>
+					{t.label}
+					<span class="tab-count">{t.count}</span>
+				</button>
+			{/each}
+		</div>
+
+		<!-- Notes -->
+		{#if activeTab === 'notes'}
+			<div class="tabpanel" role="tabpanel" id="panel-notes" aria-labelledby="tab-notes">
+				{#if form?.noteError}
+					<p class="error" role="alert">{form.noteError}</p>
+				{/if}
+
+				{#if addingNote}
+					<form
+						method="POST"
+						action="?/addNote"
+						class="stack panel wide"
+						use:enhance={submit({ done: () => (addingNote = false) })}
 					>
-						{t.label}
-						<span class="tab-count">{t.count}</span>
-					</button>
-				{/each}
+						<MarkdownEditor autofocus />
+						<div class="form-actions">
+							<button type="submit" class="primary small">Add Note</button>
+							<button type="button" class="ghost small" onclick={() => (addingNote = false)}
+								>Cancel</button
+							>
+						</div>
+					</form>
+				{:else}
+					<button type="button" class="small adder" onclick={() => (addingNote = true)}
+						>+ Add a Note</button
+					>
+				{/if}
+
+				{#if data.notes.length === 0}
+					<p class="muted empty">No Notes yet.</p>
+				{:else}
+					<ul class="items">
+						{#each data.notes as n (n.id)}
+							{@const key = `note-${n.id}`}
+							<li class="item">
+								{#if editing === key}
+									<form
+										method="POST"
+										action="?/editNote"
+										class="stack edit"
+										use:enhance={submit({ done: () => (editing = null) })}
+									>
+										<input type="hidden" name="noteId" value={n.id} />
+										<MarkdownEditor value={n.body} />
+										<div class="form-actions">
+											<button type="submit" class="primary small">Save</button>
+											<button type="button" class="ghost small" onclick={() => (editing = null)}
+												>Cancel</button
+											>
+										</div>
+									</form>
+								{:else}
+									<!-- Sanitised server-side in src/lib/markdown.ts (HTML-escaped by construction). -->
+									<div class="note-body">{@html n.html}</div>
+									<div class="item-row">
+										<div class="item-meta"></div>
+										{@render itemTools(key, '?/deleteNote', 'noteId', n.id, 'Delete this Note?')}
+									</div>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				{/if}
 			</div>
+		{/if}
 
-			<!-- Notes -->
-			{#if activeTab === 'notes'}
-				<div class="tabpanel" role="tabpanel" id="panel-notes" aria-labelledby="tab-notes">
-					{#if form?.noteError}
-						<p class="error" role="alert">{form.noteError}</p>
-					{/if}
+		<!-- Quotes -->
+		{#if activeTab === 'quotes'}
+			<div class="tabpanel" role="tabpanel" id="panel-quotes" aria-labelledby="tab-quotes">
+				{#if form?.quoteError}
+					<p class="error" role="alert">{form.quoteError}</p>
+				{/if}
 
-						{#if addingNote}
-							<form
-								method="POST"
-								action="?/addNote"
-								class="stack panel wide"
-								use:enhance={submit({ done: () => (addingNote = false) })}
+				{#if addingQuote}
+					<form
+						method="POST"
+						action="?/addQuote"
+						class="stack panel wide"
+						use:enhance={submit({ done: () => (addingQuote = false) })}
+					>
+						<label class="field">
+							<span>Quote</span>
+							<!-- svelte-ignore a11y_autofocus -->
+							<textarea name="text" rows="3" required autofocus></textarea>
+						</label>
+						<label class="field">
+							<span>Page or location (optional)</span>
+							<input name="location" type="text" />
+						</label>
+						<div class="form-actions">
+							<button type="submit" class="primary small">Add Quote</button>
+							<button type="button" class="ghost small" onclick={() => (addingQuote = false)}
+								>Cancel</button
 							>
-								<MarkdownEditor autofocus />
-								<div class="form-actions">
-									<button type="submit" class="primary small">Add Note</button>
-									<button type="button" class="ghost small" onclick={() => (addingNote = false)}
-										>Cancel</button
+						</div>
+					</form>
+				{:else}
+					<button type="button" class="small adder" onclick={() => (addingQuote = true)}
+						>+ Add a Quote</button
+					>
+				{/if}
+
+				{#if data.quotes.length === 0}
+					<p class="muted empty">No Quotes yet.</p>
+				{:else}
+					<ul class="items">
+						{#each data.quotes as q (q.id)}
+							{@const key = `quote-${q.id}`}
+							<li class="item">
+								{#if editing === key}
+									<form
+										method="POST"
+										action="?/editQuote"
+										class="stack edit"
+										use:enhance={submit({ done: () => (editing = null) })}
 									>
-								</div>
-							</form>
-						{:else}
-							<button type="button" class="small adder" onclick={() => (addingNote = true)}
-								>+ Add a Note</button
-							>
-						{/if}
-
-					{#if data.notes.length === 0}
-						<p class="muted empty">No Notes yet.</p>
-					{:else}
-						<ul class="items">
-							{#each data.notes as n (n.id)}
-								{@const key = `note-${n.id}`}
-								<li class="item">
-									{#if editing === key}
-										<form
-											method="POST"
-											action="?/editNote"
-											class="stack edit"
-											use:enhance={submit({ done: () => (editing = null) })}
-										>
-											<input type="hidden" name="noteId" value={n.id} />
-											<MarkdownEditor value={n.body} />
-											<div class="form-actions">
-												<button type="submit" class="primary small">Save</button>
-												<button type="button" class="ghost small" onclick={() => (editing = null)}
-													>Cancel</button
-												>
-											</div>
-										</form>
-									{:else}
-										<!-- Sanitised server-side in src/lib/markdown.ts (HTML-escaped by construction). -->
-										<div class="note-body">{@html n.html}</div>
-										<div class="item-row">
-											<div class="item-meta"></div>
-											{@render itemTools(key, '?/deleteNote', 'noteId', n.id, 'Delete this Note?')}
+										<input type="hidden" name="quoteId" value={q.id} />
+										<label class="field">
+											<span>Quote</span>
+											<textarea name="text" rows="3" required>{q.text}</textarea>
+										</label>
+										<label class="field">
+											<span>Page or location (optional)</span>
+											<input name="location" type="text" value={q.location ?? ''} />
+										</label>
+										<div class="form-actions">
+											<button type="submit" class="primary small">Save</button>
+											<button type="button" class="ghost small" onclick={() => (editing = null)}
+												>Cancel</button
+											>
 										</div>
-									{/if}
-								</li>
-							{/each}
-						</ul>
-					{/if}
-				</div>
-			{/if}
+									</form>
+								{:else}
+									<blockquote class="quote-text">{q.text}</blockquote>
+									<div class="item-row">
+										<div class="item-meta">
+											{#if q.location}<span>{q.location}</span>{/if}
+										</div>
+										{@render itemTools(key, '?/deleteQuote', 'quoteId', q.id, 'Delete this Quote?')}
+									</div>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</div>
+		{/if}
 
-			<!-- Quotes -->
-			{#if activeTab === 'quotes'}
-				<div class="tabpanel" role="tabpanel" id="panel-quotes" aria-labelledby="tab-quotes">
-					{#if form?.quoteError}
-						<p class="error" role="alert">{form.quoteError}</p>
-					{/if}
 
-						{#if addingQuote}
-							<form
-								method="POST"
-								action="?/addQuote"
-								class="stack panel wide"
-								use:enhance={submit({ done: () => (addingQuote = false) })}
+		<!-- Impressions -->
+		{#if activeTab === 'impressions'}
+			<div class="tabpanel" role="tabpanel" id="panel-impressions" aria-labelledby="tab-impressions">
+				{#if form?.impressionError}
+					<p class="error" role="alert">{form.impressionError}</p>
+				{/if}
+
+				{#if addingImpression}
+					<form
+						method="POST"
+						action="?/addImpression"
+						class="stack panel wide"
+						use:enhance={submit({ done: () => (addingImpression = false) })}
+					>
+						<ImpressionFields today={data.today} />
+						<div class="form-actions">
+							<button type="submit" class="primary small">Leave Impression</button>
+							<button type="button" class="ghost small" onclick={() => (addingImpression = false)}
+								>Cancel</button
 							>
-								<label class="field">
-									<span>Quote</span>
-									<!-- svelte-ignore a11y_autofocus -->
-									<textarea name="text" rows="3" required autofocus></textarea>
-								</label>
-								<label class="field">
-									<span>Page or location (optional)</span>
-									<input name="location" type="text" />
-								</label>
-								<div class="form-actions">
-									<button type="submit" class="primary small">Add Quote</button>
-									<button type="button" class="ghost small" onclick={() => (addingQuote = false)}
-										>Cancel</button
+						</div>
+					</form>
+				{:else}
+					<button type="button" class="small adder" onclick={() => (addingImpression = true)}
+						>+ Leave an Impression</button
+					>
+				{/if}
+
+				{#if data.impressions.length === 0}
+					<p class="muted empty">No Impressions yet.</p>
+				{:else}
+					<ul class="items">
+						{#each data.impressions as imp (imp.id)}
+							{@const key = `impression-${imp.id}`}
+							<li class="item">
+								{#if editing === key}
+									<form
+										method="POST"
+										action="?/editImpression"
+										class="stack edit"
+										use:enhance={submit({ done: () => (editing = null) })}
 									>
-								</div>
-							</form>
-						{:else}
-							<button type="button" class="small adder" onclick={() => (addingQuote = true)}
-								>+ Add a Quote</button
-							>
-						{/if}
-
-					{#if data.quotes.length === 0}
-						<p class="muted empty">No Quotes yet.</p>
-					{:else}
-						<ul class="items">
-							{#each data.quotes as q (q.id)}
-								{@const key = `quote-${q.id}`}
-								<li class="item">
-									{#if editing === key}
-										<form
-											method="POST"
-											action="?/editQuote"
-											class="stack edit"
-											use:enhance={submit({ done: () => (editing = null) })}
-										>
-											<input type="hidden" name="quoteId" value={q.id} />
-											<label class="field">
-												<span>Quote</span>
-												<textarea name="text" rows="3" required>{q.text}</textarea>
-											</label>
-											<label class="field">
-												<span>Page or location (optional)</span>
-												<input name="location" type="text" value={q.location ?? ''} />
-											</label>
-											<div class="form-actions">
-												<button type="submit" class="primary small">Save</button>
-												<button type="button" class="ghost small" onclick={() => (editing = null)}
-													>Cancel</button
-												>
-											</div>
-										</form>
-									{:else}
-										<blockquote class="quote-text">{q.text}</blockquote>
-										<div class="item-row">
-											<div class="item-meta">
-												{#if q.location}<span>{q.location}</span>{/if}
-											</div>
-											{@render itemTools(key, '?/deleteQuote', 'quoteId', q.id, 'Delete this Quote?')}
+										<input type="hidden" name="impressionId" value={imp.id} />
+										<ImpressionFields value={imp} today={data.today} />
+										<div class="form-actions">
+											<button type="submit" class="primary small">Save</button>
+											<button type="button" class="ghost small" onclick={() => (editing = null)}
+												>Cancel</button
+											>
 										</div>
-									{/if}
-								</li>
-							{/each}
-						</ul>
-					{/if}
-				</div>
-			{/if}
-
+									</form>
+								{:else}
+									<div class="item-row">
+										<ImpressionView impression={imp} />
+										{@render itemTools(key, '?/deleteImpression', 'impressionId', imp.id, 'Delete this Impression?')}
+									</div>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</div>
+		{/if}
 	</section>
 </article>
 
@@ -787,6 +866,9 @@
 	}
 	.clear-rating {
 		color: var(--text-faint);
+	}
+	.leave {
+		margin-top: 0.75rem;
 	}
 
 	/* Stars: each button is one half of a 1em-wide glyph, drawn 5 → ½ and
