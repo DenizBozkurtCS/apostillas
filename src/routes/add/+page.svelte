@@ -46,7 +46,7 @@
 <!-- The search box is the navbar's book search; this page shows its results. -->
 <div class="add-page">
 	<div class="page-head">
-		<h1>{data.searched ? `Results for “${data.q}”` : 'Add a book'}</h1>
+		<h1 class="page-title">{data.searched ? `Results for “${data.q}”` : 'Add a book'}</h1>
 		<button type="button" onclick={() => (manualOpen = true)}>Add a book by hand</button>
 	</div>
 

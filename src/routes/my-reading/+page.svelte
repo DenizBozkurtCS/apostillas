@@ -67,7 +67,7 @@
 
 <div class="page">
 	<div class="page-head">
-		<h1>My Reading</h1>
+		<h1 class="page-title">My Reading</h1>
 		{#if data.books.length > 0}
 			<button type="button" class="primary" onclick={() => (adding = true)}>+ Leave an Impression</button>
 		{/if}

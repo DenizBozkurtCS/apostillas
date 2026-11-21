@@ -58,7 +58,7 @@
 </script>
 
 <div class="page-head">
-	<h1>{title}</h1>
+	<h1 class="page-title">{title}</h1>
 	{#if items.length > 0}
 		<span class="count">{filtering ? `${shown.length} of ${items.length}` : items.length}</span>
 	{/if}

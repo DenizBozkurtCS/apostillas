@@ -164,7 +164,7 @@
 
 <div class="page">
 	<div class="page-head">
-		<h1>Marginalia</h1>
+		<h1 class="page-title">Marginalia</h1>
 	</div>
 
 	<div class="search" role="search">

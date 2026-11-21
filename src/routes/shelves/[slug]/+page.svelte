@@ -139,7 +139,7 @@
 
 <div class="head">
 	<div class="page-head title">
-		<h1>{shelf.name}</h1>
+		<h1 class="page-title">{shelf.name}</h1>
 		{#if shelf.books.length > 0}<span class="count">{shelf.books.length}</span>{/if}
 	</div>
 	{#if !arranging}

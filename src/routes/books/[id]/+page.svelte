@@ -215,7 +215,7 @@
 					{/if}
 				</div>
 			</div>
-			<h1>{book.title}</h1>
+			<h1 class="page-title">{book.title}</h1>
 			<p class="byline">{byline}</p>
 			<TagEditor tags={data.tags} allTags={data.allTags} error={form?.tagError ?? null} />
 			<p class="facts">

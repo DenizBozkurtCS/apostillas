@@ -68,7 +68,7 @@
 <svelte:window onclick={onWindowClick} onkeydown={onWindowKeydown} />
 
 <div class="page-head head">
-	<h1>Shelves</h1>
+	<h1 class="page-title">Shelves</h1>
 	{#if data.shelves.length > 0}
 		<button type="button" class="primary small" onclick={() => (creating = true)}>+ New Shelf</button>
 	{/if}

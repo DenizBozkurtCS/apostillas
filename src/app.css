@@ -381,8 +381,23 @@ summary.button::-webkit-details-marker {
 }
 .page-head .count {
 	color: var(--text-faint);
-	font-size: 1.1rem;
+	font-size: 1rem;
 	font-weight: 500;
+}
+
+/* A page's own title: a short accent bar under it. Only on page titles (not,
+   say, headings inside a Note), so it is a class rather than an h1 rule. */
+.page-title {
+	font-size: 1.6rem;
+	font-weight: 650;
+	letter-spacing: -0.02em;
+	padding-bottom: 0.4rem;
+	background: linear-gradient(var(--accent), var(--accent)) left bottom / 2.25rem 3px no-repeat;
+}
+@media (max-width: 36rem) {
+	.page-title {
+		font-size: 1.4rem;
+	}
 }
 
 /* ---------- Badge ---------- */

@@ -7,7 +7,7 @@
 </svelte:head>
 
 <div class="missing">
-	<h1>{page.status === 404 ? 'Shelf not found' : 'Something went wrong'}</h1>
+	<h1 class="page-title">{page.status === 404 ? 'Shelf not found' : 'Something went wrong'}</h1>
 	<p class="muted">
 		{page.status === 404
 			? 'There’s no Shelf at this address. If it was renamed, it has a new address now.'
