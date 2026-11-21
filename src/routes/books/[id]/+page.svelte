@@ -1,7 +1,7 @@
 <!--
 	The Book page. Reading content comes first: a header with the cover and the
 	action panel (Reading Status switches, stars, and buttons that open the
-	Impression / Note / Quote forms; ADR-0006), a short About, then tabs for
+	Impression / Note / Quote forms in pop-ups; ADR-0006), a short About, then tabs for
 	Impressions (shown first), Notes and Quotes. Managing
 	the Book (details, cover, sync, delete) lives behind the ⋯ menu, in dialogs.
 
@@ -34,7 +34,7 @@
 	const STARS_HIGH_TO_LOW = [...RATING_STEPS].reverse();
 
 	type Tab = 'notes' | 'quotes' | 'impressions';
-	type DialogName = 'details' | 'cover' | 'sync' | 'shelves' | 'delete';
+	type DialogName = 'details' | 'cover' | 'sync' | 'shelves' | 'delete' | Tab;
 
 	const tabs: { id: Tab; label: string }[] = [
 		{ id: 'impressions', label: 'Impressions' },
@@ -47,10 +47,6 @@
 
 	/** Which Quote or Note is being edited in place, e.g. `quote-12`. */
 	let editing = $state<string | null>(null);
-	let addingQuote = $state(false);
-	let addingNote = $state(false);
-	let addingImpression = $state(false);
-	let tabsEl: HTMLElement | undefined = $state();
 	let dialog = $state<DialogName | null>(null);
 	let menuOpen = $state(false);
 	let menu: HTMLElement | undefined = $state();
@@ -109,13 +105,10 @@
 		};
 	}
 
-	/** The panel's buttons: open a tab's add form and bring it into view. */
-	function openAdder(kind: Tab) {
+	/** After adding from a pop-up, close it and show the tab the new item is on. */
+	function added(kind: Tab) {
+		dialog = null;
 		tab = kind;
-		addingImpression = kind === 'impressions';
-		addingNote = kind === 'notes';
-		addingQuote = kind === 'quotes';
-		requestAnimationFrame(() => tabsEl?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 	}
 	function toggleEdit(key: string) {
 		editing = editing === key ? null : key;
@@ -288,11 +281,11 @@
 					aria-label="Clear rating">×</button
 				>
 			</form>
-			<button type="button" class="primary" onclick={() => openAdder('impressions')}
+			<button type="button" class="primary" onclick={() => (dialog = 'impressions')}
 				>Leave an Impression</button
 			>
-			<button type="button" onclick={() => openAdder('notes')}>Add a Note</button>
-			<button type="button" onclick={() => openAdder('quotes')}>Add a Quote</button>
+			<button type="button" onclick={() => (dialog = 'notes')}>Add a Note</button>
+			<button type="button" onclick={() => (dialog = 'quotes')}>Add a Quote</button>
 			{#if form?.error}
 				<p class="error" role="alert">{form.error}</p>
 			{/if}
@@ -317,7 +310,7 @@
 		</section>
 	{/if}
 
-	<section class="tabbed" bind:this={tabsEl}>
+	<section class="tabbed">
 		<div class="tablist" role="tablist" aria-label="Book content" tabindex="-1" onkeydown={onTabKeydown}>
 			{#each tabs as t (t.id)}
 				<button
@@ -337,25 +330,8 @@
 		<!-- Notes -->
 		{#if activeTab === 'notes'}
 			<div class="tabpanel" role="tabpanel" id="panel-notes" aria-labelledby="tab-notes">
-				{#if form?.noteError}
+				{#if form?.noteError && dialog === null}
 					<p class="error" role="alert">{form.noteError}</p>
-				{/if}
-
-				{#if addingNote}
-					<form
-						method="POST"
-						action="?/addNote"
-						class="stack panel wide"
-						use:enhance={submit({ done: () => (addingNote = false) })}
-					>
-						<MarkdownEditor autofocus />
-						<div class="form-actions">
-							<button type="submit" class="primary small">Add Note</button>
-							<button type="button" class="ghost small" onclick={() => (addingNote = false)}
-								>Cancel</button
-							>
-						</div>
-					</form>
 				{/if}
 
 				{#if data.notes.length === 0}
@@ -399,33 +375,8 @@
 		<!-- Quotes -->
 		{#if activeTab === 'quotes'}
 			<div class="tabpanel" role="tabpanel" id="panel-quotes" aria-labelledby="tab-quotes">
-				{#if form?.quoteError}
+				{#if form?.quoteError && dialog === null}
 					<p class="error" role="alert">{form.quoteError}</p>
-				{/if}
-
-				{#if addingQuote}
-					<form
-						method="POST"
-						action="?/addQuote"
-						class="stack panel wide"
-						use:enhance={submit({ done: () => (addingQuote = false) })}
-					>
-						<label class="field">
-							<span>Quote</span>
-							<!-- svelte-ignore a11y_autofocus -->
-							<textarea name="text" rows="3" required autofocus></textarea>
-						</label>
-						<label class="field">
-							<span>Page or location (optional)</span>
-							<input name="location" type="text" />
-						</label>
-						<div class="form-actions">
-							<button type="submit" class="primary small">Add Quote</button>
-							<button type="button" class="ghost small" onclick={() => (addingQuote = false)}
-								>Cancel</button
-							>
-						</div>
-					</form>
 				{/if}
 
 				{#if data.quotes.length === 0}
@@ -478,25 +429,8 @@
 		<!-- Impressions -->
 		{#if activeTab === 'impressions'}
 			<div class="tabpanel" role="tabpanel" id="panel-impressions" aria-labelledby="tab-impressions">
-				{#if form?.impressionError}
+				{#if form?.impressionError && dialog === null}
 					<p class="error" role="alert">{form.impressionError}</p>
-				{/if}
-
-				{#if addingImpression}
-					<form
-						method="POST"
-						action="?/addImpression"
-						class="stack panel wide"
-						use:enhance={submit({ done: () => (addingImpression = false) })}
-					>
-						<ImpressionFields today={data.today} />
-						<div class="form-actions">
-							<button type="submit" class="primary small">Leave Impression</button>
-							<button type="button" class="ghost small" onclick={() => (addingImpression = false)}
-								>Cancel</button
-							>
-						</div>
-					</form>
 				{/if}
 
 				{#if data.impressions.length === 0}
@@ -538,6 +472,47 @@
 </article>
 
 <!-- ⋯ menu dialogs -->
+
+<Dialog title="Leave an Impression" bind:open={() => dialog === 'impressions', (v) => setDialogOpen('impressions', v)}>
+	<form method="POST" action="?/addImpression" class="stack" use:enhance={submit({ done: () => added('impressions') })}>
+		{#if form?.impressionError}<p class="error" role="alert">{form.impressionError}</p>{/if}
+		<ImpressionFields today={data.today} />
+		<div class="form-actions">
+			<button type="submit" class="primary">Leave Impression</button>
+			<button type="button" class="ghost" onclick={() => (dialog = null)}>Cancel</button>
+		</div>
+	</form>
+</Dialog>
+
+<Dialog title="Add a Note" wide bind:open={() => dialog === 'notes', (v) => setDialogOpen('notes', v)}>
+	<form method="POST" action="?/addNote" class="stack" use:enhance={submit({ done: () => added('notes') })}>
+		{#if form?.noteError}<p class="error" role="alert">{form.noteError}</p>{/if}
+		<MarkdownEditor autofocus minHeight="calc(100vh - 18rem)" />
+		<div class="form-actions">
+			<button type="submit" class="primary">Add Note</button>
+			<button type="button" class="ghost" onclick={() => (dialog = null)}>Cancel</button>
+		</div>
+	</form>
+</Dialog>
+
+<Dialog title="Add a Quote" bind:open={() => dialog === 'quotes', (v) => setDialogOpen('quotes', v)}>
+	<form method="POST" action="?/addQuote" class="stack" use:enhance={submit({ done: () => added('quotes') })}>
+		{#if form?.quoteError}<p class="error" role="alert">{form.quoteError}</p>{/if}
+		<label class="field">
+			<span>Quote</span>
+			<!-- svelte-ignore a11y_autofocus -->
+			<textarea name="text" rows="4" required autofocus></textarea>
+		</label>
+		<label class="field">
+			<span>Page or location (optional)</span>
+			<input name="location" type="text" />
+		</label>
+		<div class="form-actions">
+			<button type="submit" class="primary">Add Quote</button>
+			<button type="button" class="ghost" onclick={() => (dialog = null)}>Cancel</button>
+		</div>
+	</form>
+</Dialog>
 
 <Dialog title="Edit details" bind:open={() => dialog === 'details', (v) => setDialogOpen('details', v)}>
 	<form
@@ -932,19 +907,6 @@
 	.stars button:focus-visible ~ button {
 		background: none;
 		color: var(--star);
-	}
-	.panel {
-		width: 100%;
-		max-width: 22rem;
-		margin-top: 0.75rem;
-		padding: 1rem;
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		background: var(--surface);
-	}
-	.panel.wide {
-		max-width: none;
-		margin: 0 0 1rem;
 	}
 
 	/* ⋯ menu */

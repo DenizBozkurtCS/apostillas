@@ -6,10 +6,14 @@
 <p class="tagline">because goodreads was hideous.</p>
 
 <style>
+	/* Centred in the whole window, under the sticky header. */
 	.tagline {
-		min-height: 60vh;
+		position: fixed;
+		inset: 0;
 		display: grid;
 		place-items: center;
+		padding: 1rem;
+		pointer-events: none;
 		margin: 0;
 		font-size: clamp(1.5rem, 4vw, 2.5rem);
 		font-weight: 600;

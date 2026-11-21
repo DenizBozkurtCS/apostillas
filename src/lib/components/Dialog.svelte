@@ -2,7 +2,8 @@
 	A modal dialog over the page, built on the native <dialog> element so focus
 	trapping, Escape, and the backdrop come from the browser. `open` is bindable:
 	set it to show the dialog; it turns false when the reader closes it (×,
-	Escape, or a click on the backdrop).
+	Escape, or a click on the backdrop). `wide` makes it fill most of the
+	window, for writing (the Note editor).
 -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
@@ -10,8 +11,9 @@
 	let {
 		open = $bindable(false),
 		title,
+		wide = false,
 		children
-	}: { open?: boolean; title: string; children: Snippet } = $props();
+	}: { open?: boolean; title: string; wide?: boolean; children: Snippet } = $props();
 
 	let dialog: HTMLDialogElement | undefined = $state();
 	const titleId = $props.id();
@@ -28,7 +30,7 @@
 	}
 </script>
 
-<dialog bind:this={dialog} aria-labelledby={titleId} onclose={() => (open = false)} onclick={onClick}>
+<dialog bind:this={dialog} class:wide aria-labelledby={titleId} onclose={() => (open = false)} onclick={onClick}>
 	<div class="inner">
 		<header>
 			<h2 id={titleId}>{title}</h2>
@@ -52,6 +54,11 @@
 		background: var(--surface-raised);
 		color: var(--text);
 		box-shadow: var(--shadow);
+	}
+	dialog.wide {
+		width: min(76rem, calc(100vw - 2rem));
+		height: calc(100vh - 3rem);
+		max-height: none;
 	}
 	dialog::backdrop {
 		background: rgb(0 0 0 / 0.45);

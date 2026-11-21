@@ -25,9 +25,17 @@
 		value = '',
 		rows = 6,
 		label = 'Note (Markdown)',
-		autofocus = false
-	}: { name?: string; value?: string; rows?: number; label?: string; autofocus?: boolean } =
-		$props();
+		autofocus = false,
+		minHeight
+	}: {
+		name?: string;
+		value?: string;
+		rows?: number;
+		label?: string;
+		autofocus?: boolean;
+		/** CSS height for the writing area; defaults to `rows` lines. */
+		minHeight?: string;
+	} = $props();
 
 	let textarea: HTMLTextAreaElement | undefined = $state();
 	const id = $props.id();
@@ -51,8 +59,11 @@
 	};
 
 	onMount(() => {
-		let editor: { toTextArea(): void; cleanup(): void; codemirror: { focus(): void } } | null =
-			null;
+		let editor: {
+			toTextArea(): void;
+			cleanup(): void;
+			codemirror: { focus(): void; getWrapperElement(): HTMLElement };
+		} | null = null;
 		let cancelled = false;
 
 		(async () => {
@@ -66,7 +77,7 @@
 				spellChecker: false,
 				nativeSpellcheck: true,
 				status: false,
-				minHeight: `${rows * 1.5}rem`,
+				minHeight: minHeight ?? `${rows * 1.5}rem`,
 				sideBySideFullscreen: false,
 				previewRender: (text: string) => renderMarkdown(text),
 				// Markdown shortcuts kept; the rest stay as EasyMDE defaults.
@@ -101,7 +112,11 @@
 			});
 			editor = mde;
 
-			const wrapper = textarea.parentElement;
+			// Measure after layout: inside a dialog that is just opening, the
+			// width is still 0 when the editor mounts.
+			await new Promise((resolve) => requestAnimationFrame(resolve));
+			if (cancelled) return;
+			const wrapper = mde.codemirror.getWrapperElement().closest('.md-editor');
 			if (wrapper && wrapper.clientWidth >= SIDE_BY_SIDE_MIN_PX) EasyMDE.toggleSideBySide(mde);
 			if (autofocus) mde.codemirror.focus();
 		})();
