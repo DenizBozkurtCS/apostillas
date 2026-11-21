@@ -1,7 +1,7 @@
 <!--
 	The Book page. Reading content comes first: a header with the cover and the
 	action panel (Reading Status switches, stars, and buttons that open the
-	Impression / Note / Quote forms in pop-ups; ADR-0006), a short About, then tabs for
+	Impression / Note / Quote / Shelf pop-ups; ADR-0006), a short About, then tabs for
 	Impressions (shown first), Notes and Quotes. Managing
 	the Book (details, cover, sync, delete) lives behind the ⋯ menu, in dialogs.
 
@@ -204,9 +204,6 @@
 									>Sync from Open Library</button
 								>
 							{/if}
-							<button type="button" role="menuitem" onclick={() => openDialog('shelves')}
-								>Add to Shelf…</button
-							>
 							<hr />
 							<button
 								type="button"
@@ -286,6 +283,7 @@
 			>
 			<button type="button" onclick={() => (dialog = 'notes')}>Add a Note</button>
 			<button type="button" onclick={() => (dialog = 'quotes')}>Add a Quote</button>
+			<button type="button" onclick={() => (dialog = 'shelves')}>Add to Shelf…</button>
 			{#if form?.error}
 				<p class="error" role="alert">{form.error}</p>
 			{/if}

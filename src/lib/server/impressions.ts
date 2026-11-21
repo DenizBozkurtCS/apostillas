@@ -2,8 +2,9 @@
  * The store-facing side of Impressions (see src/lib/domain/impressions.ts).
  * Every change is scoped to `bookId`, so a forged id from the browser can only
  * touch the Book it names. Saving an Impression with a rating makes that the
- * Book's Rating (the most recently set one wins, ADR-0006); Impressions never
- * change Reading Statuses.
+ * Book's Rating (the most recently set one wins, ADR-0006). Leaving a new
+ * Impression ends Reading and, unless it is marked Didn't finish, switches
+ * Read it on; nothing else touches the Reading Statuses.
  */
 
 import { and, eq } from 'drizzle-orm';
@@ -14,6 +15,7 @@ import {
 	type ImpressionCheck,
 	type ImpressionInput
 } from '../domain/impressions';
+import { setStatus } from './book';
 import type { Db } from './books';
 import { books, impressions } from './db/schema';
 
@@ -53,10 +55,16 @@ function rateFrom(db: Db, bookId: number, input: ImpressionInput): void {
 	if (input.rating !== null) db.update(books).set({ rating: input.rating }).where(eq(books.id, bookId)).run();
 }
 
-/** Add an Impression to a Book; returns its id. */
-export function addImpression(db: Db, bookId: number, input: ImpressionInput): number {
+/**
+ * Add an Impression to a Book; returns its id. Leaving one means the reader
+ * has stopped reading, so Reading is switched off; unless they didn't finish,
+ * they have read it, so Finished ("Read it") is switched on. Want to read stays.
+ */
+export function addImpression(db: Db, bookId: number, input: ImpressionInput, now?: string): number {
 	const id = db.insert(impressions).values({ bookId, ...input }).returning({ id: impressions.id }).get().id;
 	rateFrom(db, bookId, input);
+	setStatus(db, bookId, 'reading', false, now);
+	if (!input.didNotFinish) setStatus(db, bookId, 'finished', true, now);
 	return id;
 }
 

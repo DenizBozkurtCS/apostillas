@@ -1,7 +1,8 @@
 /**
  * Pure rules for Impressions (see GLOSSARY.md and ADR-0006): a dated record of
  * reading a Book, with an optional Rating, an optional short review, and the
- * Reread / Didn't finish markers. Impressions never change Reading Statuses.
+ * Reread / Didn't finish markers. Leaving one ends Reading and, unless it is
+ * Didn't finish, marks the Book read (src/lib/server/impressions.ts).
  */
 
 import { isValidRating } from './reading';

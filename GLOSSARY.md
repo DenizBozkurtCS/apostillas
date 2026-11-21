@@ -26,7 +26,7 @@ All of the reader's Shelves together, in the order the reader arranges them.
 ## Reading
 
 **Reading Status**:
-Where a Book stands for the reader: **Want to read**, **Reading**, and **Finished**. The three are independent: the reader switches each on or off directly, so a Book can have any of them, all of them, or none. They never come from Impressions, and setting one records no date.
+Where a Book stands for the reader: **Want to read**, **Reading**, and **Finished**. The three are independent: the reader switches each on or off directly, so a Book can have any of them, all of them, or none. Setting one records no date. The one link to Impressions: leaving an Impression switches Reading off and, unless it is marked Didn't finish, Finished on.
 _Avoid_: State, shelf, list
 
 On screen, the three lists sit under a **Library** menu, and two have their own names there: the Want to read list is **Bookstack**, and the Finished list is **Books** (the Finished switch itself reads "Read it"). These are UI labels only; code and docs keep the Reading Status names above.
@@ -47,7 +47,7 @@ _Avoid_: Done, completed
 How much the reader liked a Book, ½ to 5 stars. A Book has at most one: whichever rating the reader set most recently, on the Book itself or on one of its Impressions. A Book can be rated without any Impression.
 
 **Impression**:
-A dated record of reading a Book: one date (no start date), with an optional Rating and an optional short review. It can be marked as a **Reread** or as **Didn't finish**. A Book can have many Impressions, and they never change its Reading Status.
+A dated record of reading a Book: one date (no start date), with an optional Rating and an optional short review. It can be marked as a **Reread** or as **Didn't finish**. A Book can have many Impressions. Leaving one ends Reading and, unless it is marked Didn't finish, marks the Book Finished; otherwise Impressions never change a Book's Reading Status.
 _Avoid_: Read, log, remark, review (as the whole record)
 
 **Reread**:

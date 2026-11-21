@@ -42,7 +42,7 @@ export const books = sqliteTable('books', {
 /**
  * An Impression: a dated record of reading a Book, with an optional Rating and
  * short review, and Reread / Didn't finish markers the reader ticks (see
- * GLOSSARY.md). Impressions never change a Book's Reading Statuses (ADR-0006).
+ * GLOSSARY.md). Leaving one switches Reading off and, unless Didn't finish, Finished on (ADR-0006).
  * Deleting a Book cascades.
  */
 export const impressions = sqliteTable('impressions', {

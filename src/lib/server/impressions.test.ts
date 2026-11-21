@@ -45,12 +45,12 @@ describe('Impressions', () => {
 		expect(loadImpressions(db, id).map((i) => i.id)).toEqual([a]);
 	});
 
-	it('makes a saved rating the Book’s Rating without touching its statuses', () => {
+	it('makes a saved rating the Book’s Rating', () => {
 		const db = testDb();
 		const id = book(db);
 		db.update(books).set({ rating: 2 }).run();
 		const a = addImpression(db, id, { ...input, rating: 4.5 });
-		expect(bookRow(db, id)).toMatchObject({ rating: 4.5, finishedSince: null, readingSince: null, wantSince: null });
+		expect(bookRow(db, id).rating).toBe(4.5);
 
 		// An unrated Impression leaves the Rating alone; editing in a rating sets it.
 		addImpression(db, id, input);
@@ -61,6 +61,38 @@ describe('Impressions', () => {
 		// Deleting keeps the Rating.
 		deleteImpression(db, id, a);
 		expect(bookRow(db, id).rating).toBe(3);
+	});
+
+	it('leaving an Impression ends Reading and switches Read it on, keeping Want to read', () => {
+		const db = testDb();
+		const id = book(db);
+		const T = '2026-11-01T10:00:00.000Z';
+		const NOW = '2026-11-21T10:00:00.000Z';
+		db.update(books).set({ wantSince: T, readingSince: T }).run();
+		addImpression(db, id, input, NOW);
+		expect(bookRow(db, id)).toMatchObject({ wantSince: T, readingSince: null, finishedSince: NOW });
+
+		// Already Read it: keeps its original moment.
+		addImpression(db, id, input, '2027-01-01T00:00:00.000Z');
+		expect(bookRow(db, id).finishedSince).toBe(NOW);
+	});
+
+	it('a Didn’t finish Impression ends Reading but does not switch Read it on', () => {
+		const db = testDb();
+		const id = book(db);
+		db.update(books).set({ readingSince: '2026-11-01T10:00:00.000Z' }).run();
+		addImpression(db, id, { ...input, didNotFinish: true });
+		expect(bookRow(db, id)).toMatchObject({ readingSince: null, finishedSince: null });
+	});
+
+	it('editing an Impression changes no status', () => {
+		const db = testDb();
+		const id = book(db);
+		const a = addImpression(db, id, { ...input, didNotFinish: true });
+		const T = '2026-11-01T10:00:00.000Z';
+		db.update(books).set({ readingSince: T }).run();
+		editImpression(db, id, a, { ...input, rating: 4 });
+		expect(bookRow(db, id)).toMatchObject({ readingSince: T, finishedSince: null });
 	});
 
 	it('only touches Impressions of the given Book', () => {
