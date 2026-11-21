@@ -5,7 +5,7 @@ import * as schema from './schema';
 
 const sqlite = new Database(dbPath(ensureDataDir()));
 sqlite.pragma('journal_mode = WAL');
-// Enforce the Book → Reads/Quotes/Notes cascade and Read → annotation unlink.
+// Enforce the Book → Reads/Quotes/Notes/Tags cascade.
 sqlite.pragma('foreign_keys = ON');
 
 export const db = drizzle(sqlite, { schema });

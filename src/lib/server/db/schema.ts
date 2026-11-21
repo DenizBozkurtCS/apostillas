@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 /**
  * A Book is a work as its author wrote it (see GLOSSARY.md), not a specific
@@ -84,3 +84,20 @@ export const notes = sqliteTable('notes', {
 		.notNull()
 		.default(sql`(CURRENT_TIMESTAMP)`)
 });
+
+/**
+ * A Tag on a Book (see GLOSSARY.md). Tags have no table of their own: a Tag is
+ * just a name that at least one Book carries, so it disappears with its last
+ * row. `name` is normalised (lowercase, no `#`; see src/lib/domain/tags.ts).
+ * Deleting a Book cascades.
+ */
+export const bookTags = sqliteTable(
+	'book_tags',
+	{
+		bookId: integer('book_id')
+			.notNull()
+			.references(() => books.id, { onDelete: 'cascade' }),
+		name: text('name').notNull()
+	},
+	(table) => [primaryKey({ columns: [table.bookId, table.name] })]
+);

@@ -13,6 +13,7 @@
 	import Dialog from '#lib/components/Dialog.svelte';
 	import Stars from '#lib/components/Stars.svelte';
 	import StarInput from '#lib/components/StarInput.svelte';
+	import TagEditor from '#lib/components/TagEditor.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -214,6 +215,7 @@
 					<Stars rating={data.rating} />
 				</p>
 			{/if}
+			<TagEditor tags={data.tags} allTags={data.allTags} error={form?.tagError ?? null} />
 			<p class="facts">
 				{#if book.pageCount}<span>{book.pageCount} pages</span>{/if}
 				{#if book.isbn}<span>ISBN {book.isbn}</span>{/if}

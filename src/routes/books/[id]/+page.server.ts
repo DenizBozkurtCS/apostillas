@@ -41,6 +41,8 @@ import {
 } from '#lib/server/annotations';
 import { currentRating } from '#lib/domain/lists';
 import { deleteReadMessage } from '#lib/format';
+import { tagError } from '#lib/domain/tags';
+import { addTag, allTags, removeTag, tagsForBook } from '#lib/server/tags';
 import type { Actions, PageServerLoad } from './$types';
 
 function parseId(raw: string): number {
@@ -109,7 +111,10 @@ export const load: PageServerLoad = async ({ params, url }) => {
 		quotes: annotations.quotes,
 		notes: annotations.notes,
 		// Quotes and Notes can only be added once the Book is no longer Want to read.
-		canAnnotate: canAnnotate(status)
+		canAnnotate: canAnnotate(status),
+		tags: tagsForBook(db, id),
+		// Every Tag in use, for the "+ tag" suggestions.
+		allTags: allTags(db)
 	};
 };
 
@@ -329,6 +334,19 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const noteId = optionalNumber(form.get('noteId'));
 		if (noteId !== null) deleteNote(db, id, noteId);
+	},
+
+	addTag: async ({ params, request }) => {
+		const id = parseId(params.id);
+		requireBook(id);
+		const raw = String((await request.formData()).get('tag') ?? '');
+		if (addTag(db, id, raw) === null) return fail(400, { tagError: tagError(raw) });
+	},
+
+	removeTag: async ({ params, request }) => {
+		const id = parseId(params.id);
+		requireBook(id);
+		removeTag(db, id, String((await request.formData()).get('tag') ?? ''));
 	},
 
 	deleteBook: ({ params }) => {
