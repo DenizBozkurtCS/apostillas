@@ -278,7 +278,7 @@ describe('revertToWantToRead', () => {
 		const result = revertToWantToRead(reads);
 		expect(result).toEqual({
 			ok: true,
-			mutation: { kind: 'delete', id: 5, unlinkReadId: 5 }
+			mutation: { kind: 'delete', id: 5 }
 		});
 	});
 
@@ -337,7 +337,7 @@ describe('editRead', () => {
 describe('deleteRead', () => {
 	it('deletes the Read and unlinks its annotations', () => {
 		const r = read({ id: 9, outcome: 'finished', endDate: TODAY });
-		expect(deleteRead(r)).toEqual({ kind: 'delete', id: 9, unlinkReadId: 9 });
+		expect(deleteRead(r)).toEqual({ kind: 'delete', id: 9 });
 	});
 });
 

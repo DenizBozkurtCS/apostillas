@@ -36,7 +36,7 @@ export const actions: Actions = {
 		}
 		const body = optional(form.get('body'));
 		if (body === null) return fail(400, { noteError: 'A Note needs some text.' });
-		addNote(db, bookId, { body, readId: optionalNumber(form.get('readId')) });
+		addNote(db, bookId, { body });
 	},
 
 	addQuote: async ({ request }) => {
@@ -50,8 +50,7 @@ export const actions: Actions = {
 		if (text === null) return fail(400, { quoteError: 'A Quote needs some text.' });
 		addQuote(db, bookId, {
 			text,
-			location: optional(form.get('location')),
-			readId: optionalNumber(form.get('readId'))
+			location: optional(form.get('location'))
 		});
 	},
 
@@ -61,7 +60,7 @@ export const actions: Actions = {
 		const noteId = optionalNumber(form.get('noteId'));
 		const body = optional(form.get('body'));
 		if (body === null) return fail(400, { noteError: 'A Note needs some text.' });
-		if (bookId === null || noteId === null || !editNote(db, bookId, noteId, { body, readId: optionalNumber(form.get('readId')) })) {
+		if (bookId === null || noteId === null || !editNote(db, bookId, noteId, { body })) {
 			return fail(400, { noteError: 'That Note no longer exists.' });
 		}
 	},
@@ -74,8 +73,7 @@ export const actions: Actions = {
 		if (text === null) return fail(400, { quoteError: 'A Quote needs some text.' });
 		const input = {
 			text,
-			location: optional(form.get('location')),
-			readId: optionalNumber(form.get('readId'))
+			location: optional(form.get('location'))
 		};
 		if (bookId === null || quoteId === null || !editQuote(db, bookId, quoteId, input)) {
 			return fail(400, { quoteError: 'That Quote no longer exists.' });

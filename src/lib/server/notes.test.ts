@@ -68,20 +68,6 @@ describe('annotatableBooks', () => {
 		expect(canAnnotateBook(db, reading)).toBe(true);
 	});
 
-	it('defaults the linked Read to the open Read, else the newest Read', () => {
-		const db = testDb();
-		const reading = book(db, 'Reading');
-		read(db, reading, { endDate: '2024-01-01' });
-		const open = read(db, reading, { outcome: 'open', startDate: '2026-11-01' });
-		const finished = book(db, 'Finished');
-		read(db, finished, { endDate: '2024-01-01' });
-		const newest = read(db, finished, { endDate: '2026-01-01' });
-
-		const byTitle = Object.fromEntries(annotatableBooks(db).map((b) => [b.title, b]));
-		expect(byTitle.Reading.defaultReadId).toBe(open);
-		expect(byTitle.Finished.defaultReadId).toBe(newest);
-		expect(byTitle.Finished.reads.map((r) => r.id)[0]).toBe(newest);
-	});
 
 	it('refuses a Want to read Book or one that does not exist', () => {
 		const db = testDb();

@@ -1,10 +1,9 @@
 /**
  * The store-facing side of a Book's Quotes and Notes (see GLOSSARY.md).
  *
- * Both belong to a Book and may optionally be linked to one of the Book's
- * Reads. Every mutation is scoped to `bookId`, so a forged id from the browser
- * can only ever touch the Book on screen. A supplied `readId` is validated to
- * belong to the same Book; anything else is stored as null (unlinked).
+ * Both belong to a Book (not to any Read). Every mutation is scoped to
+ * `bookId`, so a forged id from the browser can only ever touch the Book on
+ * screen.
  *
  * Whether Quotes and Notes may be *added* at all depends on the Book's Reading
  * Status — that rule lives in the pure domain (`canAnnotate`); this module just
@@ -14,14 +13,13 @@
 import { and, desc, eq } from 'drizzle-orm';
 import { renderMarkdown } from '../markdown';
 import type { Db } from './books';
-import { notes, quotes, reads } from './db/schema';
+import { notes, quotes } from './db/schema';
 
 /** A Quote as the Book page renders it. */
 export interface QuoteRow {
 	id: number;
 	text: string;
 	location: string | null;
-	readId: number | null;
 	createdAt: string;
 }
 
@@ -30,7 +28,6 @@ export interface NoteRow {
 	id: number;
 	body: string;
 	html: string;
-	readId: number | null;
 	createdAt: string;
 }
 
@@ -38,28 +35,11 @@ export interface NoteRow {
 export interface QuoteInput {
 	text: string;
 	location: string | null;
-	readId: number | null;
 }
 
 /** Fields for adding or editing a Note. */
 export interface NoteInput {
 	body: string;
-	readId: number | null;
-}
-
-/**
- * Resolve a requested Read link: the id when that Read belongs to `bookId`,
- * otherwise null. Keeps a Quote or Note from being linked to another Book's
- * Read, whatever the browser sends.
- */
-function resolveReadLink(db: Db, bookId: number, readId: number | null): number | null {
-	if (readId == null) return null;
-	const row = db
-		.select({ id: reads.id })
-		.from(reads)
-		.where(and(eq(reads.id, readId), eq(reads.bookId, bookId)))
-		.get();
-	return row ? readId : null;
 }
 
 /** Add a Quote to a Book. Returns its id, or null when the text is blank. */
@@ -71,8 +51,7 @@ export function addQuote(db: Db, bookId: number, input: QuoteInput): number | nu
 		.values({
 			bookId,
 			text,
-			location: input.location?.trim() || null,
-			readId: resolveReadLink(db, bookId, input.readId)
+			location: input.location?.trim() || null
 		})
 		.returning({ id: quotes.id })
 		.get().id;
@@ -84,7 +63,7 @@ export function addNote(db: Db, bookId: number, input: NoteInput): number | null
 	if (body === '') return null;
 	return db
 		.insert(notes)
-		.values({ bookId, body, readId: resolveReadLink(db, bookId, input.readId) })
+		.values({ bookId, body })
 		.returning({ id: notes.id })
 		.get().id;
 }
@@ -97,8 +76,7 @@ export function editQuote(db: Db, bookId: number, quoteId: number, input: QuoteI
 		.update(quotes)
 		.set({
 			text,
-			location: input.location?.trim() || null,
-			readId: resolveReadLink(db, bookId, input.readId)
+			location: input.location?.trim() || null
 		})
 		.where(and(eq(quotes.id, quoteId), eq(quotes.bookId, bookId)))
 		.run();
@@ -111,7 +89,7 @@ export function editNote(db: Db, bookId: number, noteId: number, input: NoteInpu
 	if (body === '') return false;
 	const res = db
 		.update(notes)
-		.set({ body, readId: resolveReadLink(db, bookId, input.readId) })
+		.set({ body })
 		.where(and(eq(notes.id, noteId), eq(notes.bookId, bookId)))
 		.run();
 	return res.changes > 0;
@@ -150,14 +128,12 @@ export function loadAnnotations(db: Db, bookId: number): { quotes: QuoteRow[]; n
 			id: q.id,
 			text: q.text,
 			location: q.location,
-			readId: q.readId,
 			createdAt: q.createdAt
 		})),
 		notes: noteRows.map((n) => ({
 			id: n.id,
 			body: n.body,
 			html: renderMarkdown(n.body),
-			readId: n.readId,
 			createdAt: n.createdAt
 		}))
 	};

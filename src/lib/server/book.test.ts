@@ -111,7 +111,7 @@ describe('applyReadMutation', () => {
 		expect(row).toMatchObject({ outcome: 'finished', endDate: '2026-02-01', rating: 5 });
 	});
 
-	it('deletes a Read and unlinks its Quotes and Notes, keeping them on the Book', () => {
+	it('deletes a Read and keeps the Quotes and Notes on the Book', () => {
 		const db = testDb();
 		const id = seedBook(db);
 		const readId = db
@@ -119,16 +119,14 @@ describe('applyReadMutation', () => {
 			.values({ bookId: id, startDate: '2026-01-01', outcome: 'finished', endDate: '2026-02-01' })
 			.returning({ id: reads.id })
 			.get().id;
-		db.insert(quotes).values({ bookId: id, readId, text: 'q' }).run();
-		db.insert(notes).values({ bookId: id, readId, body: 'n' }).run();
+		db.insert(quotes).values({ bookId: id, text: 'q' }).run();
+		db.insert(notes).values({ bookId: id, body: 'n' }).run();
 
-		applyReadMutation(db, id, { kind: 'delete', id: readId, unlinkReadId: readId });
+		applyReadMutation(db, id, { kind: 'delete', id: readId });
 
 		expect(db.select().from(reads).where(eq(reads.id, readId)).get()).toBeUndefined();
-		const quote = db.select().from(quotes).where(eq(quotes.bookId, id)).get()!;
-		expect(quote.readId).toBeNull();
-		const note = db.select().from(notes).where(eq(notes.bookId, id)).get()!;
-		expect(note.readId).toBeNull();
+		expect(db.select().from(quotes).where(eq(quotes.bookId, id)).get()).toBeDefined();
+		expect(db.select().from(notes).where(eq(notes.bookId, id)).get()).toBeDefined();
 	});
 
 	it('does not touch a Read that belongs to another Book', () => {
@@ -140,7 +138,7 @@ describe('applyReadMutation', () => {
 			.values({ bookId: b, startDate: '2026-01-01', outcome: 'open' })
 			.returning({ id: reads.id })
 			.get().id;
-		applyReadMutation(db, a, { kind: 'delete', id: readId, unlinkReadId: readId });
+		applyReadMutation(db, a, { kind: 'delete', id: readId });
 		expect(db.select().from(reads).where(eq(reads.id, readId)).get()).toBeDefined();
 	});
 });

@@ -50,7 +50,7 @@ _Avoid_: Revisit, second read
 
 ## Annotations
 
-Quotes and Notes belong to a Book, optionally tied to one of its Reads. They can be added to any Book except one that is Want to read.
+Quotes and Notes belong to a Book, not to any of its Reads. They can be added to any Book except one that is Want to read.
 
 **Quote**:
 A passage copied verbatim from a Book, optionally with the page or location it came from.

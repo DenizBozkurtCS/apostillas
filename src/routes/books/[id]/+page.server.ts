@@ -22,7 +22,6 @@ import {
 	finish,
 	isReread,
 	logPastFinished,
-	openRead,
 	readingStatus,
 	readsNewestFirst,
 	revertToWantToRead,
@@ -110,9 +109,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
 		quotes: annotations.quotes,
 		notes: annotations.notes,
 		// Quotes and Notes can only be added once the Book is no longer Want to read.
-		canAnnotate: canAnnotate(status),
-		// New Quotes and Notes default to the open Read, when there is one.
-		defaultReadId: openRead(reads)?.id ?? null
+		canAnnotate: canAnnotate(status)
 	};
 };
 
@@ -271,8 +268,7 @@ export const actions: Actions = {
 		if (text === null) return fail(400, { quoteError: 'A Quote needs some text.' });
 		addQuote(db, id, {
 			text,
-			location: optional(form.get('location')),
-			readId: optionalNumber(form.get('readId'))
+			location: optional(form.get('location'))
 		});
 	},
 
@@ -287,8 +283,7 @@ export const actions: Actions = {
 		if (
 			!editQuote(db, id, quoteId, {
 				text,
-				location: optional(form.get('location')),
-				readId: optionalNumber(form.get('readId'))
+				location: optional(form.get('location'))
 			})
 		) {
 			return fail(400, { quoteError: 'That Quote no longer exists.' });
@@ -312,7 +307,7 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const body = optional(form.get('body'));
 		if (body === null) return fail(400, { noteError: 'A Note needs some text.' });
-		addNote(db, id, { body, readId: optionalNumber(form.get('readId')) });
+		addNote(db, id, { body });
 	},
 
 	editNote: async ({ params, request }) => {
@@ -323,7 +318,7 @@ export const actions: Actions = {
 		if (noteId === null) return fail(400, { noteError: 'That Note no longer exists.' });
 		const body = optional(form.get('body'));
 		if (body === null) return fail(400, { noteError: 'A Note needs some text.' });
-		if (!editNote(db, id, noteId, { body, readId: optionalNumber(form.get('readId')) })) {
+		if (!editNote(db, id, noteId, { body })) {
 			return fail(400, { noteError: 'That Note no longer exists.' });
 		}
 	},

@@ -8,7 +8,7 @@
 -->
 <script lang="ts">
 	import { enhance, type SubmitFunction } from '$app/forms';
-	import { formatDay, outcomeLabel, readLabel, statusLabel } from '#lib/format';
+	import { formatDay, outcomeLabel, statusLabel } from '#lib/format';
 	import MarkdownEditor from '#lib/components/MarkdownEditor.svelte';
 	import Dialog from '#lib/components/Dialog.svelte';
 	import Stars from '#lib/components/Stars.svelte';
@@ -132,13 +132,6 @@
 		tab = tabs[next].id;
 		document.getElementById(`tab-${tab}`)?.focus();
 	}
-
-	/** The label of the Read an annotation is linked to, or '' when unlinked. */
-	function readLabelFor(readId: number | null): string {
-		if (readId == null) return '';
-		const r = data.reads.find((x) => x.id === readId);
-		return r ? readLabel(r) : '';
-	}
 </script>
 
 <svelte:head>
@@ -146,20 +139,6 @@
 </svelte:head>
 
 <svelte:window onclick={onWindowClick} onkeydown={onWindowKeydown} />
-
-{#snippet readLinkField(selected: number | null)}
-	{#if data.reads.length > 0}
-		<label class="field">
-			<span>Linked Read (optional)</span>
-			<select name="readId">
-				<option value="" selected={selected == null}>Not linked to a Read</option>
-				{#each data.reads as r (r.id)}
-					<option value={r.id} selected={selected === r.id}>{readLabel(r)}</option>
-				{/each}
-			</select>
-		</label>
-	{/if}
-{/snippet}
 
 {#snippet itemTools(key: string, deleteAction: string, idName: string, id: number, message: string)}
 	<div class="tools">
@@ -385,7 +364,6 @@
 								use:enhance={submit({ done: () => (addingNote = false) })}
 							>
 								<MarkdownEditor autofocus />
-								{@render readLinkField(data.defaultReadId)}
 								<div class="form-actions">
 									<button type="submit" class="primary small">Add Note</button>
 									<button type="button" class="ghost small" onclick={() => (addingNote = false)}
@@ -418,7 +396,6 @@
 										>
 											<input type="hidden" name="noteId" value={n.id} />
 											<MarkdownEditor value={n.body} />
-											{@render readLinkField(n.readId)}
 											<div class="form-actions">
 												<button type="submit" class="primary small">Save</button>
 												<button type="button" class="ghost small" onclick={() => (editing = null)}
@@ -430,9 +407,7 @@
 										<!-- Sanitised server-side in src/lib/markdown.ts (HTML-escaped by construction). -->
 										<div class="note-body">{@html n.html}</div>
 										<div class="item-row">
-											<div class="item-meta">
-												{#if readLabelFor(n.readId)}<span>↳ {readLabelFor(n.readId)}</span>{/if}
-											</div>
+											<div class="item-meta"></div>
 											{@render itemTools(key, '?/deleteNote', 'noteId', n.id, 'Delete this Note?')}
 										</div>
 									{/if}
@@ -467,7 +442,6 @@
 									<span>Page or location (optional)</span>
 									<input name="location" type="text" />
 								</label>
-								{@render readLinkField(data.defaultReadId)}
 								<div class="form-actions">
 									<button type="submit" class="primary small">Add Quote</button>
 									<button type="button" class="ghost small" onclick={() => (addingQuote = false)}
@@ -507,7 +481,6 @@
 												<span>Page or location (optional)</span>
 												<input name="location" type="text" value={q.location ?? ''} />
 											</label>
-											{@render readLinkField(q.readId)}
 											<div class="form-actions">
 												<button type="submit" class="primary small">Save</button>
 												<button type="button" class="ghost small" onclick={() => (editing = null)}
@@ -520,7 +493,6 @@
 										<div class="item-row">
 											<div class="item-meta">
 												{#if q.location}<span>{q.location}</span>{/if}
-												{#if readLabelFor(q.readId)}<span>↳ {readLabelFor(q.readId)}</span>{/if}
 											</div>
 											{@render itemTools(key, '?/deleteQuote', 'quoteId', q.id, 'Delete this Quote?')}
 										</div>

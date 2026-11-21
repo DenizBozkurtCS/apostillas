@@ -4,7 +4,7 @@ import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { eq } from 'drizzle-orm';
 import * as schema from './db/schema';
-import { books, notes, quotes, reads } from './db/schema';
+import { books, notes, quotes } from './db/schema';
 import {
 	addNote,
 	addQuote,
@@ -31,57 +31,39 @@ function seedBook(db: BetterSQLite3Database<typeof schema>, over: Partial<typeof
 		.get().id;
 }
 
-function seedRead(db: BetterSQLite3Database<typeof schema>, bookId: number, over: Partial<typeof reads.$inferInsert> = {}) {
-	return db
-		.insert(reads)
-		.values({ bookId, outcome: 'open', startDate: '2026-01-01', ...over })
-		.returning({ id: reads.id })
-		.get().id;
-}
-
 describe('addQuote', () => {
-	it('adds a Quote with text, location and a linked Read', () => {
+	it('adds a Quote with text and location', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		const readId = seedRead(db, id);
-		const quoteId = addQuote(db, id, { text: 'Fear is the mind-killer.', location: 'p. 8', readId });
+		const quoteId = addQuote(db, id, { text: 'Fear is the mind-killer.', location: 'p. 8' });
 		const row = db.select().from(quotes).where(eq(quotes.id, quoteId!)).get()!;
-		expect(row).toMatchObject({ bookId: id, text: 'Fear is the mind-killer.', location: 'p. 8', readId });
+		expect(row).toMatchObject({ bookId: id, text: 'Fear is the mind-killer.', location: 'p. 8' });
 	});
 
 	it('refuses empty text', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		expect(addQuote(db, id, { text: '   ', location: null, readId: null })).toBeNull();
+		expect(addQuote(db, id, { text: '   ', location: null })).toBeNull();
 		expect(db.select().from(quotes).all()).toEqual([]);
 	});
 
-	it('stores null when the linked Read belongs to another Book', () => {
-		const db = testDb();
-		const id = seedBook(db);
-		const other = seedBook(db, { title: 'Other', workId: null });
-		const foreignRead = seedRead(db, other);
-		const quoteId = addQuote(db, id, { text: 'q', location: null, readId: foreignRead });
-		expect(db.select().from(quotes).where(eq(quotes.id, quoteId!)).get()!.readId).toBeNull();
-	});
 });
 
 describe('addNote', () => {
 	it('adds a Note with a Markdown body', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		const noteId = addNote(db, id, { body: '# A thought', readId: null });
+		const noteId = addNote(db, id, { body: '# A thought' });
 		expect(db.select().from(notes).where(eq(notes.id, noteId!)).get()).toMatchObject({
 			bookId: id,
-			body: '# A thought',
-			readId: null
+			body: '# A thought'
 		});
 	});
 
 	it('refuses an empty body', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		expect(addNote(db, id, { body: '  \n ', readId: null })).toBeNull();
+		expect(addNote(db, id, { body: '  \n ' })).toBeNull();
 		expect(db.select().from(notes).all()).toEqual([]);
 	});
 });
@@ -90,13 +72,11 @@ describe('editQuote / editNote', () => {
 	it('updates a Quote scoped to its Book', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		const readId = seedRead(db, id);
-		const quoteId = addQuote(db, id, { text: 'old', location: null, readId: null })!;
-		expect(editQuote(db, id, quoteId, { text: 'new', location: 'p. 1', readId })).toBe(true);
+		const quoteId = addQuote(db, id, { text: 'old', location: null })!;
+		expect(editQuote(db, id, quoteId, { text: 'new', location: 'p. 1' })).toBe(true);
 		expect(db.select().from(quotes).where(eq(quotes.id, quoteId)).get()).toMatchObject({
 			text: 'new',
-			location: 'p. 1',
-			readId
+			location: 'p. 1'
 		});
 	});
 
@@ -104,25 +84,25 @@ describe('editQuote / editNote', () => {
 		const db = testDb();
 		const id = seedBook(db);
 		const other = seedBook(db, { title: 'Other', workId: null });
-		const quoteId = addQuote(db, other, { text: 'theirs', location: null, readId: null })!;
-		expect(editQuote(db, id, quoteId, { text: 'hacked', location: null, readId: null })).toBe(false);
+		const quoteId = addQuote(db, other, { text: 'theirs', location: null })!;
+		expect(editQuote(db, id, quoteId, { text: 'hacked', location: null })).toBe(false);
 		expect(db.select().from(quotes).where(eq(quotes.id, quoteId)).get()!.text).toBe('theirs');
 	});
 
 	it('refuses blank edited text/body', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		const quoteId = addQuote(db, id, { text: 'keep', location: null, readId: null })!;
-		expect(editQuote(db, id, quoteId, { text: ' ', location: null, readId: null })).toBe(false);
-		const noteId = addNote(db, id, { body: 'keep', readId: null })!;
-		expect(editNote(db, id, noteId, { body: ' ', readId: null })).toBe(false);
+		const quoteId = addQuote(db, id, { text: 'keep', location: null })!;
+		expect(editQuote(db, id, quoteId, { text: ' ', location: null })).toBe(false);
+		const noteId = addNote(db, id, { body: 'keep' })!;
+		expect(editNote(db, id, noteId, { body: ' ' })).toBe(false);
 	});
 
 	it('updates a Note body', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		const noteId = addNote(db, id, { body: 'old', readId: null })!;
-		expect(editNote(db, id, noteId, { body: 'new body', readId: null })).toBe(true);
+		const noteId = addNote(db, id, { body: 'old' })!;
+		expect(editNote(db, id, noteId, { body: 'new body' })).toBe(true);
 		expect(db.select().from(notes).where(eq(notes.id, noteId)).get()!.body).toBe('new body');
 	});
 });
@@ -131,7 +111,7 @@ describe('deleteQuote / deleteNote', () => {
 	it('deletes a Quote scoped to its Book', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		const quoteId = addQuote(db, id, { text: 'q', location: null, readId: null })!;
+		const quoteId = addQuote(db, id, { text: 'q', location: null })!;
 		deleteQuote(db, id, quoteId);
 		expect(db.select().from(quotes).where(eq(quotes.id, quoteId)).get()).toBeUndefined();
 	});
@@ -140,7 +120,7 @@ describe('deleteQuote / deleteNote', () => {
 		const db = testDb();
 		const id = seedBook(db);
 		const other = seedBook(db, { title: 'Other', workId: null });
-		const quoteId = addQuote(db, other, { text: 'theirs', location: null, readId: null })!;
+		const quoteId = addQuote(db, other, { text: 'theirs', location: null })!;
 		deleteQuote(db, id, quoteId);
 		expect(db.select().from(quotes).where(eq(quotes.id, quoteId)).get()).toBeDefined();
 	});
@@ -148,7 +128,7 @@ describe('deleteQuote / deleteNote', () => {
 	it('deletes a Note scoped to its Book', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		const noteId = addNote(db, id, { body: 'n', readId: null })!;
+		const noteId = addNote(db, id, { body: 'n' })!;
 		deleteNote(db, id, noteId);
 		expect(db.select().from(notes).where(eq(notes.id, noteId)).get()).toBeUndefined();
 	});
@@ -158,9 +138,9 @@ describe('loadAnnotations', () => {
 	it('returns Quotes and Notes newest first with rendered Note HTML', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		const q1 = addQuote(db, id, { text: 'first', location: null, readId: null })!;
-		const q2 = addQuote(db, id, { text: 'second', location: 'p. 2', readId: null })!;
-		addNote(db, id, { body: '**bold**', readId: null })!;
+		const q1 = addQuote(db, id, { text: 'first', location: null })!;
+		const q2 = addQuote(db, id, { text: 'second', location: 'p. 2' })!;
+		addNote(db, id, { body: '**bold**' })!;
 
 		const { quotes: qs, notes: ns } = loadAnnotations(db, id);
 		expect(qs.map((q) => q.id)).toEqual([q2, q1]); // newest first
@@ -174,8 +154,8 @@ describe('loadAnnotations', () => {
 		const db = testDb();
 		const id = seedBook(db);
 		const other = seedBook(db, { title: 'Other', workId: null });
-		addQuote(db, other, { text: 'theirs', location: null, readId: null });
-		addNote(db, id, { body: 'mine', readId: null });
+		addQuote(db, other, { text: 'theirs', location: null });
+		addNote(db, id, { body: 'mine' });
 
 		const result = loadAnnotations(db, id);
 		expect(result.quotes).toEqual([]);

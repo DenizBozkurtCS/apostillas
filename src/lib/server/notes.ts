@@ -8,8 +8,7 @@
  */
 
 import { desc, eq } from 'drizzle-orm';
-import { canAnnotate, defaultAnnotationRead, readingStatus, readsNewestFirst } from '../domain/reading';
-import type { Outcome } from '../domain/reading';
+import { canAnnotate, readingStatus } from '../domain/reading';
 import { renderMarkdown } from '../markdown';
 import type { Db } from './books';
 import { books, notes, quotes } from './db/schema';
@@ -28,7 +27,6 @@ export interface FeedNote {
 	body: string;
 	/** Sanitised HTML rendered from `body`. */
 	html: string;
-	readId: number | null;
 	createdAt: string;
 	book: FeedBook;
 }
@@ -37,17 +35,8 @@ export interface FeedQuote {
 	id: number;
 	text: string;
 	location: string | null;
-	readId: number | null;
 	createdAt: string;
 	book: FeedBook;
-}
-
-/** A Read as the Book picker offers it for linking. */
-export interface PickerRead {
-	id: number;
-	outcome: Outcome;
-	startDate: string | null;
-	endDate: string | null;
 }
 
 /** A Book a new Quote or Note can be written about. */
@@ -55,10 +44,6 @@ export interface AnnotatableBook {
 	id: number;
 	title: string;
 	authors: string[];
-	/** Newest first. */
-	reads: PickerRead[];
-	/** The Read a new Quote or Note links to unless the reader picks another. */
-	defaultReadId: number | null;
 }
 
 function parseAuthors(json: string): string[] {
@@ -87,7 +72,7 @@ export function loadFeed(db: Db): { notes: FeedNote[]; quotes: FeedQuote[] } {
 	});
 
 	const noteRows = db
-		.select({ ...bookCols, id: notes.id, body: notes.body, readId: notes.readId, createdAt: notes.createdAt })
+		.select({ ...bookCols, id: notes.id, body: notes.body, createdAt: notes.createdAt })
 		.from(notes)
 		.innerJoin(books, eq(books.id, notes.bookId))
 		.orderBy(desc(notes.createdAt), desc(notes.id))
@@ -98,7 +83,6 @@ export function loadFeed(db: Db): { notes: FeedNote[]; quotes: FeedQuote[] } {
 			id: quotes.id,
 			text: quotes.text,
 			location: quotes.location,
-			readId: quotes.readId,
 			createdAt: quotes.createdAt
 		})
 		.from(quotes)
@@ -111,7 +95,6 @@ export function loadFeed(db: Db): { notes: FeedNote[]; quotes: FeedQuote[] } {
 			id: r.id,
 			body: r.body,
 			html: renderMarkdown(r.body),
-			readId: r.readId,
 			createdAt: r.createdAt,
 			book: toBook(r)
 		})),
@@ -119,7 +102,6 @@ export function loadFeed(db: Db): { notes: FeedNote[]; quotes: FeedQuote[] } {
 			id: r.id,
 			text: r.text,
 			location: r.location,
-			readId: r.readId,
 			createdAt: r.createdAt,
 			book: toBook(r)
 		}))
@@ -128,22 +110,15 @@ export function loadFeed(db: Db): { notes: FeedNote[]; quotes: FeedQuote[] } {
 
 /**
  * The Books a new Quote or Note can be written about (any Reading Status but
- * Want to read), by title, each with its Reads for the "Linked Read" choice.
+ * Want to read), by title.
  */
 export function annotatableBooks(db: Db): AnnotatableBook[] {
 	return loadBooksWithReads(db)
 		.filter(({ reads }) => canAnnotate(readingStatus(reads)))
-		.map(({ book, reads }) => ({
+		.map(({ book }) => ({
 			id: book.id,
 			title: book.title,
-			authors: book.authors,
-			reads: readsNewestFirst(reads).map((r) => ({
-				id: r.id,
-				outcome: r.outcome,
-				startDate: r.startDate,
-				endDate: r.endDate
-			})),
-			defaultReadId: defaultAnnotationRead(reads)?.id ?? null
+			authors: book.authors
 		}))
 		.sort((a, b) => a.title.localeCompare(b.title));
 }

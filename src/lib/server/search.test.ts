@@ -44,7 +44,7 @@ describe('searchAnnotations', () => {
 	it('finds a Quote and reports its kind, Book and a marked snippet', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		addQuote(db, id, { text: 'Fear is the mind-killer.', location: 'p. 8', readId: null });
+		addQuote(db, id, { text: 'Fear is the mind-killer.', location: 'p. 8' });
 
 		const hits = searchAnnotations(db, 'fear');
 		expect(hits).toHaveLength(1);
@@ -56,7 +56,7 @@ describe('searchAnnotations', () => {
 	it('finds a Note by its Markdown body', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		addNote(db, id, { body: 'A thought about **ecology** and power.', readId: null });
+		addNote(db, id, { body: 'A thought about **ecology** and power.' });
 
 		const hits = searchAnnotations(db, 'ecology');
 		expect(hits).toHaveLength(1);
@@ -67,22 +67,22 @@ describe('searchAnnotations', () => {
 	it('matches by prefix', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		addQuote(db, id, { text: 'The spice must flow', location: null, readId: null });
+		addQuote(db, id, { text: 'The spice must flow', location: null });
 		expect(searchAnnotations(db, 'spi')).toHaveLength(1);
 	});
 
 	it('returns nothing for a blank query', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		addQuote(db, id, { text: 'anything', location: null, readId: null });
+		addQuote(db, id, { text: 'anything', location: null });
 		expect(searchAnnotations(db, '   ')).toEqual([]);
 	});
 
 	it('stays in sync when a Quote is edited', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		const q = addQuote(db, id, { text: 'arrakis', location: null, readId: null })!;
-		editQuote(db, id, q, { text: 'caladan', location: null, readId: null });
+		const q = addQuote(db, id, { text: 'arrakis', location: null })!;
+		editQuote(db, id, q, { text: 'caladan', location: null });
 		expect(searchAnnotations(db, 'arrakis')).toEqual([]);
 		expect(searchAnnotations(db, 'caladan')).toHaveLength(1);
 	});
@@ -90,8 +90,8 @@ describe('searchAnnotations', () => {
 	it('stays in sync when a Note is edited', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		const n = addNote(db, id, { body: 'sihaya', readId: null })!;
-		editNote(db, id, n, { body: 'muaddib', readId: null });
+		const n = addNote(db, id, { body: 'sihaya' })!;
+		editNote(db, id, n, { body: 'muaddib' });
 		expect(searchAnnotations(db, 'sihaya')).toEqual([]);
 		expect(searchAnnotations(db, 'muaddib')).toHaveLength(1);
 	});
@@ -99,7 +99,7 @@ describe('searchAnnotations', () => {
 	it('stays in sync when a Quote is deleted', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		const q = addQuote(db, id, { text: 'gom jabbar', location: null, readId: null })!;
+		const q = addQuote(db, id, { text: 'gom jabbar', location: null })!;
 		deleteQuote(db, id, q);
 		expect(searchAnnotations(db, 'jabbar')).toEqual([]);
 	});
@@ -107,8 +107,8 @@ describe('searchAnnotations', () => {
 	it('drops a Book\'s annotations from the index when the Book is deleted', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		addQuote(db, id, { text: 'kwisatz haderach', location: null, readId: null });
-		addNote(db, id, { body: 'bene gesserit', readId: null });
+		addQuote(db, id, { text: 'kwisatz haderach', location: null });
+		addNote(db, id, { body: 'bene gesserit' });
 		db.delete(books).where(eq(books.id, id)).run();
 		expect(searchAnnotations(db, 'kwisatz')).toEqual([]);
 		expect(searchAnnotations(db, 'gesserit')).toEqual([]);
@@ -117,7 +117,7 @@ describe('searchAnnotations', () => {
 	it('HTML-escapes the snippet so stored markup cannot inject', () => {
 		const db = testDb();
 		const id = seedBook(db);
-		addQuote(db, id, { text: 'danger <script>alert(1)</script> here', location: null, readId: null });
+		addQuote(db, id, { text: 'danger <script>alert(1)</script> here', location: null });
 		const hits = searchAnnotations(db, 'danger');
 		expect(hits[0].snippetHtml).not.toContain('<script>');
 		expect(hits[0].snippetHtml).toContain('&lt;script&gt;');

@@ -15,7 +15,6 @@
 	import { enhance, type SubmitFunction } from '$app/forms';
 	import Clamp from '#lib/components/Clamp.svelte';
 	import MarkdownEditor from '#lib/components/MarkdownEditor.svelte';
-	import { readLabel } from '#lib/format';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -133,20 +132,6 @@
 		{/if}
 		<span class="card-book-title">{book.title}</span>
 	</a>
-{/snippet}
-
-{#snippet readLinkSelect(book: PageData['books'][number] | null, selected: number | null)}
-	{#if book && book.reads.length > 0}
-		<label class="field">
-			<span>Linked Read (optional)</span>
-			<select name="readId">
-				<option value="" selected={selected == null}>Not linked to a Read</option>
-				{#each book.reads as r (r.id)}
-					<option value={r.id} selected={selected === r.id}>{readLabel(r)}</option>
-				{/each}
-			</select>
-		</label>
-	{/if}
 {/snippet}
 
 {#snippet bookPicker()}
@@ -270,7 +255,6 @@
 						{@render bookPicker()}
 						{#if composeBook}
 							<MarkdownEditor autofocus />
-							{@render readLinkSelect(composeBook, composeBook.defaultReadId)}
 							<button type="submit" class="primary small">Add Note</button>
 						{/if}
 					</form>
@@ -282,7 +266,6 @@
 					<ul class="cards">
 						{#each shownNotes as n (n.id)}
 							{@const key = `note-${n.id}`}
-							{@const book = data.books.find((b) => b.id === n.book.id) ?? null}
 							<li class="card">
 								{@render bookLink(n.book)}
 								{#if editing === key}
@@ -295,11 +278,6 @@
 										<input type="hidden" name="bookId" value={n.book.id} />
 										<input type="hidden" name="noteId" value={n.id} />
 										<MarkdownEditor value={n.body} />
-										{#if book}
-											{@render readLinkSelect(book, n.readId)}
-										{:else}
-											<input type="hidden" name="readId" value={n.readId ?? ''} />
-										{/if}
 										<div class="form-actions">
 											<button type="submit" class="primary small">Save</button>
 											<button type="button" class="ghost small" onclick={() => (editing = null)}
@@ -372,7 +350,6 @@
 								<span>Page or location (optional)</span>
 								<input name="location" type="text" />
 							</label>
-							{@render readLinkSelect(composeBook, composeBook.defaultReadId)}
 							<button type="submit" class="primary small">Add Quote</button>
 						{/if}
 					</form>
@@ -384,7 +361,6 @@
 					<ul class="cards">
 						{#each shownQuotes as q (q.id)}
 							{@const key = `quote-${q.id}`}
-							{@const book = data.books.find((b) => b.id === q.book.id) ?? null}
 							<li class="card">
 								{@render bookLink(q.book)}
 								{#if editing === key}
@@ -404,11 +380,6 @@
 											<span>Page or location (optional)</span>
 											<input name="location" type="text" value={q.location ?? ''} />
 										</label>
-										{#if book}
-											{@render readLinkSelect(book, q.readId)}
-										{:else}
-											<input type="hidden" name="readId" value={q.readId ?? ''} />
-										{/if}
 										<div class="form-actions">
 											<button type="submit" class="primary small">Save</button>
 											<button type="button" class="ghost small" onclick={() => (editing = null)}

@@ -43,16 +43,11 @@ export interface ReadPatch {
 	readBefore?: boolean;
 }
 
-/**
- * A persistence instruction produced by an operation.
- *
- * `delete` means: delete the Read row, then unlink (set the Read to null on)
- * the Quotes and Notes whose Read is `unlinkReadId` — they stay on the Book.
- */
+/** A persistence instruction produced by an operation. */
 export type Mutation =
 	| { kind: 'insert'; read: NewRead }
 	| { kind: 'update'; id: number; patch: ReadPatch }
-	| { kind: 'delete'; id: number; unlinkReadId: number };
+	| { kind: 'delete'; id: number };
 
 /** The result of an operation: a mutation to apply, or a refusal reason. */
 export type OpResult = { ok: true; mutation: Mutation } | { ok: false; error: string };
@@ -91,13 +86,6 @@ export function readsNewestFirst<R extends Read>(reads: readonly R[]): R[] {
 	});
 }
 
-/**
- * The Read a new Quote or Note links to by default: the open Read when there is
- * one, otherwise the newest Read, otherwise none.
- */
-export function defaultAnnotationRead(reads: readonly Read[]): Read | null {
-	return openRead(reads) ?? readsNewestFirst(reads)[0] ?? null;
-}
 
 /**
  * Reading Status by ADR-0005 precedence: any open Read wins (Reading), else any
@@ -269,7 +257,7 @@ export function revertToWantToRead(reads: readonly Read[]): OpResult {
 	if (!open) {
 		return { ok: false, error: 'Only a Book that is Reading can go back to Bookstack.' };
 	}
-	return { ok: true, mutation: { kind: 'delete', id: open.id, unlinkReadId: open.id } };
+	return { ok: true, mutation: { kind: 'delete', id: open.id } };
 }
 
 /**
@@ -301,5 +289,5 @@ export function editRead(read: Read, fields: EditReadFields): OpResult {
  * {@link statusAfterDeleting}.
  */
 export function deleteRead(read: Read): Mutation {
-	return { kind: 'delete', id: read.id, unlinkReadId: read.id };
+	return { kind: 'delete', id: read.id };
 }

@@ -83,8 +83,8 @@ export function loadBookDetail(db: Db, id: number): BookDetail | null {
 
 /**
  * Apply a domain {@link Mutation} to a Book's Reads. Updates and deletes are
- * scoped to `bookId`. Deleting a Read relies on the schema's `read_id → null`
- * foreign key to unlink its Quotes and Notes, keeping them on the Book.
+ * scoped to `bookId`. Quotes and Notes belong to the Book, so deleting a Read
+ * leaves them alone.
  */
 export function applyReadMutation(db: Db, bookId: number, mutation: Mutation): void {
 	switch (mutation.kind) {
