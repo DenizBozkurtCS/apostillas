@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { formatRating, RATING_STEPS } from '#lib/format';
+	import StatusIcon from '#lib/components/StatusIcon.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -67,14 +68,31 @@
 										>{/if}
 								</span>
 
-								<div class="add-as">
-									<button type="submit" name="addAs" value="want" class="primary small"
-										>Want to read</button
+								<div class="add-as" role="group" aria-label="Add to">
+									<button
+										type="submit"
+										name="addAs"
+										value="want"
+										class="primary icon"
+										title="Add to Want to read"
+										aria-label="Add to Want to read"><StatusIcon status="want" /></button
 									>
-									<button type="submit" name="addAs" value="reading" class="small">Reading</button>
+									<button
+										type="submit"
+										name="addAs"
+										value="reading"
+										class="icon"
+										title="Add as Reading"
+										aria-label="Add as Reading"><StatusIcon status="reading" /></button
+									>
 									<span class="read-it">
-										<button type="submit" name="addAs" value="finished" class="small"
-											>Read it</button
+										<button
+											type="submit"
+											name="addAs"
+											value="finished"
+											class="icon"
+											title="Add as Read (unrated)"
+											aria-label="Add as Read, unrated"><StatusIcon status="finished" /></button
 										>
 										<!-- Clicking a star adds the Book as read with that rating. Each star
 										     is two buttons, its left half (n−½) and right half (n). They are
@@ -258,7 +276,13 @@
 	.read-it {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: 0.5rem;
+	}
+	/* Square icon-only status buttons; the label is in title / aria-label. */
+	button.icon {
+		width: 2.1rem;
+		height: 2.1rem;
+		padding: 0;
 	}
 
 	.stars {
