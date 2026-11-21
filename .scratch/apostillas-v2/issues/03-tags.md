@@ -1,6 +1,6 @@
 # Tags on Books
 
-Status: ready-for-human
+Status: closed
 Blocked by: 01
 
 Let the reader group Books with Tags (see **Tag** in `GLOSSARY.md`).
@@ -16,3 +16,5 @@ Let the reader group Books with Tags (see **Tag** in `GLOSSARY.md`).
 - Back up `data/` before running the migration.
 
 ## Comments
+
+**RALPH (2026-11-21):** Done: Tags on Books
