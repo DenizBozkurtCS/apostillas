@@ -156,7 +156,22 @@
 									>
 										<input type="hidden" name="bookId" value={imp.book.id} />
 										<input type="hidden" name="impressionId" value={imp.id} />
-										<button type="submit" class="ghost small danger">Delete</button>
+										<button
+											type="submit"
+											class="ghost small danger trash"
+											aria-label={`Delete this Impression of ${imp.book.title}`}
+											title="Delete"
+											><svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"
+												><path
+													d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+												/></svg
+											></button
+										>
 									</form>
 								</div>
 								{/if}
@@ -339,6 +354,11 @@
 	}
 	.tools form {
 		margin: 0;
+	}
+	.trash {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.3rem 0.4rem;
 	}
 	.edit {
 		margin-top: 0.6rem;
