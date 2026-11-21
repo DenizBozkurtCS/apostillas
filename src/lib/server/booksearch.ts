@@ -88,6 +88,32 @@ function mapOpenLibraryDoc(doc: OpenLibraryDoc): BookSearchResult {
 	};
 }
 
+/** Whether a string is an Open Library work ID such as `/works/OL45883W`. */
+export function isOpenLibraryWorkId(workId: string): boolean {
+	return /^\/works\/OL\d+W$/.test(workId);
+}
+
+/**
+ * The description of an Open Library work, which search results don't carry.
+ * Best-effort: returns '' for an invalid work ID, a failed request, or a work
+ * with no description.
+ */
+export async function fetchOpenLibraryDescription(
+	workId: string,
+	fetchImpl: FetchLike = fetch
+): Promise<string> {
+	if (!isOpenLibraryWorkId(workId)) return '';
+	try {
+		const res = await fetchImpl(`https://openlibrary.org${workId}.json`);
+		if (!res.ok) return '';
+		const body = (await res.json()) as { description?: string | { value?: string } };
+		const d = body.description;
+		return (typeof d === 'string' ? d : (d?.value ?? '')).trim();
+	} catch {
+		return '';
+	}
+}
+
 async function searchGoogleBooks(q: string, fetchImpl: FetchLike): Promise<BookSearchResult[]> {
 	const url =
 		'https://www.googleapis.com/books/v1/volumes?maxResults=20' +

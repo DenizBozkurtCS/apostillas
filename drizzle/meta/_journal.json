@@ -15,6 +15,13 @@
       "when": 1795183656153,
       "tag": "0001_eminent_cable",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1795229308277,
+      "tag": "0002_fast_roughhouse",
+      "breakpoints": true
     }
   ]
 }

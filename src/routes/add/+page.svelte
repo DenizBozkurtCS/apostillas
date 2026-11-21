@@ -114,7 +114,7 @@
 
 		<label>
 			<span>Cover image (optional)</span>
-			<input name="cover" type="file" accept="image/*" />
+			<input name="cover" type="file" accept="image/jpeg,image/png,image/gif,image/webp" />
 		</label>
 
 		<button type="submit">Add to Want to read</button>

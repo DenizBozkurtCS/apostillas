@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `books_work_id_unique` ON `books` (`work_id`);

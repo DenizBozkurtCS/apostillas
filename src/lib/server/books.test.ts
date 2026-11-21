@@ -46,7 +46,7 @@ afterEach(() => {
 	fs.rmSync(tmpDir, { recursive: true, force: true });
 });
 
-const coverBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+const coverBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
 const okCover = vi.fn(async () => new Response(coverBytes, { status: 200 }));
 
 describe('addBook', () => {
@@ -94,7 +94,7 @@ describe('addBook', () => {
 		expect(db.select().from(books).all()).toHaveLength(1);
 	});
 
-	it('creates separate Books for Google Books results, which have no work ID', async () => {
+	it('opens the existing Book when the same Google Books result is added twice', async () => {
 		const db = testDb();
 		const fetchImpl = okCover;
 		const g = result({ source: 'google-books', workId: null, coverUrl: null });
@@ -102,8 +102,83 @@ describe('addBook', () => {
 		const first = await addBook({ db, coversDir, fetchImpl }, { result: g });
 		const second = await addBook({ db, coversDir, fetchImpl }, { result: g });
 
-		expect(first.bookId).not.toBe(second.bookId);
-		expect(db.select().from(books).all()).toHaveLength(2);
+		expect(second.created).toBe(false);
+		expect(second.bookId).toBe(first.bookId);
+		expect(db.select().from(books).all()).toHaveLength(1);
+	});
+
+	it('opens a hand-entered Book when an Open Library result matches its title + authors', async () => {
+		const db = testDb();
+		const manual = addBookManually({ db, coversDir }, { title: 'dune', authors: ['Frank Herbert'] });
+
+		const fromSearch = await addBook({ db, coversDir, fetchImpl: okCover }, { result: result() });
+
+		expect(fromSearch).toEqual({ bookId: manual.bookId, created: false });
+		expect(db.select().from(books).all()).toHaveLength(1);
+	});
+
+	it('enforces one Book per work ID in the database', () => {
+		const db = testDb();
+		db.insert(books).values({ title: 'Dune', workId: '/works/OL45883W' }).run();
+
+		expect(() =>
+			db.insert(books).values({ title: 'Other', workId: '/works/OL45883W' }).run()
+		).toThrow(/UNIQUE/);
+		// Books without a work ID never collide.
+		db.insert(books).values({ title: 'A' }).run();
+		db.insert(books).values({ title: 'B' }).run();
+	});
+
+	it('fetches the work description for an Open Library result that has none', async () => {
+		const db = testDb();
+		const fetchImpl = vi.fn(async (url: string) =>
+			url === 'https://openlibrary.org/works/OL45883W.json'
+				? Response.json({ description: { type: '/type/text', value: 'Spice and sand.' } })
+				: new Response(coverBytes)
+		);
+
+		const { bookId } = await addBook(
+			{ db, coversDir, fetchImpl },
+			{ result: result({ description: '' }) }
+		);
+
+		const row = db.select().from(books).where(eq(books.id, bookId)).get()!;
+		expect(row.description).toBe('Spice and sand.');
+	});
+
+	it('drops a work ID that is not an Open Library work ID', async () => {
+		const db = testDb();
+		const { bookId } = await addBook(
+			{ db, coversDir, fetchImpl: okCover },
+			{ result: result({ workId: '/../../admin' }) }
+		);
+
+		const row = db.select().from(books).where(eq(books.id, bookId)).get()!;
+		expect(row.workId).toBeNull();
+	});
+
+	it('does not download a cover from a host that is not a provider cover host', async () => {
+		const db = testDb();
+		const fetchImpl = vi.fn(async () => new Response(coverBytes));
+
+		const { bookId } = await addBook(
+			{ db, coversDir, fetchImpl },
+			{ result: result({ coverUrl: 'http://169.254.169.254/latest/meta-data' }) }
+		);
+
+		expect(fetchImpl).not.toHaveBeenCalled();
+		const row = db.select().from(books).where(eq(books.id, bookId)).get()!;
+		expect(row.coverPath).toBeNull();
+	});
+
+	it('does not store a downloaded cover that is not an image', async () => {
+		const db = testDb();
+		const fetchImpl = vi.fn(async () => new Response('<html>hi</html>'));
+
+		const { bookId } = await addBook({ db, coversDir, fetchImpl }, { result: result() });
+
+		const row = db.select().from(books).where(eq(books.id, bookId)).get()!;
+		expect(row.coverPath).toBeNull();
 	});
 
 	it('still creates the Book when the cover download fails', async () => {
@@ -191,6 +266,26 @@ describe('addBookManually', () => {
 		expect(second.created).toBe(true);
 		expect(second.bookId).not.toBe(first.bookId);
 		expect(db.select().from(books).all()).toHaveLength(2);
+	});
+
+	it('opens a search-added Book when the hand-entered title + authors match it', async () => {
+		const db = testDb();
+		const fromSearch = await addBook({ db, coversDir, fetchImpl: okCover }, { result: result() });
+
+		const manual = addBookManually({ db, coversDir }, { title: 'DUNE', authors: ['Frank Herbert'] });
+
+		expect(manual).toEqual({ bookId: fromSearch.bookId, created: false });
+	});
+
+	it('does not store an uploaded cover that is not an image', () => {
+		const db = testDb();
+		const { bookId } = addBookManually(
+			{ db, coversDir },
+			{ title: 'Untitled', authors: [], cover: new TextEncoder().encode('<script>') }
+		);
+
+		const row = db.select().from(books).where(eq(books.id, bookId)).get()!;
+		expect(row.coverPath).toBeNull();
 	});
 
 	it('creates the Book without a cover when none is uploaded', async () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
-import { DB_FILENAME, dbPath } from './paths';
+import { coversDir, DB_FILENAME, dbPath } from './paths';
 
 describe('dbPath', () => {
 	it('places the SQLite file inside the data folder', () => {
@@ -11,5 +11,11 @@ describe('dbPath', () => {
 		const result = dbPath('./data');
 		expect(path.isAbsolute(result)).toBe(true);
 		expect(result).toBe(path.join(path.resolve('./data'), DB_FILENAME));
+	});
+});
+
+describe('coversDir', () => {
+	it('places the covers folder inside the data folder', () => {
+		expect(coversDir('./data')).toBe(path.join(path.resolve('./data'), 'covers'));
 	});
 });

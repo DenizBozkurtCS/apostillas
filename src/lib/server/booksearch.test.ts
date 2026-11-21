@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { searchBooks, type BookSearchResult } from './booksearch';
+import { fetchOpenLibraryDescription, searchBooks, type BookSearchResult } from './booksearch';
 
 /** Build a stub `fetch` that returns canned JSON per host and records calls. */
 function stubFetch(byHost: Record<string, unknown>) {
@@ -108,5 +108,23 @@ describe('searchBooks', () => {
 		const fetchImpl = vi.fn();
 		expect(await searchBooks('   ', fetchImpl)).toEqual([]);
 		expect(fetchImpl).not.toHaveBeenCalled();
+	});
+});
+
+describe('fetchOpenLibraryDescription', () => {
+	it('reads a plain or typed-text description from the work record', async () => {
+		const plain = stubFetch({ [OPEN_LIBRARY]: { description: ' A desert planet. ' } });
+		expect(await fetchOpenLibraryDescription('/works/OL45883W', plain.fetchImpl)).toBe('A desert planet.');
+		expect(plain.calls).toEqual(['https://openlibrary.org/works/OL45883W.json']);
+
+		const typed = stubFetch({ [OPEN_LIBRARY]: { description: { type: '/type/text', value: 'Spice.' } } });
+		expect(await fetchOpenLibraryDescription('/works/OL45883W', typed.fetchImpl)).toBe('Spice.');
+	});
+
+	it('returns an empty string for a work without one, or an invalid work ID', async () => {
+		const { fetchImpl, calls } = stubFetch({ [OPEN_LIBRARY]: {} });
+		expect(await fetchOpenLibraryDescription('/works/OL1W', fetchImpl)).toBe('');
+		expect(await fetchOpenLibraryDescription('/authors/OL1A', fetchImpl)).toBe('');
+		expect(calls).toHaveLength(1);
 	});
 });

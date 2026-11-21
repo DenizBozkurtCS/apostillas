@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 /**
  * A Book is a work as its author wrote it (see GLOSSARY.md), not a specific
@@ -24,7 +24,10 @@ export const books = sqliteTable('books', {
 	createdAt: text('created_at')
 		.notNull()
 		.default(sql`(CURRENT_TIMESTAMP)`)
-});
+},
+	// One Book per Open Library work (ADR-0002); NULLs (manual and Google Books) don't collide.
+	(table) => [uniqueIndex('books_work_id_unique').on(table.workId)]
+);
 
 /**
  * A Read is one pass through a Book. Reading Status and Reread are derived from

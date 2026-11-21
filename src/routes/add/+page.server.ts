@@ -1,9 +1,9 @@
-import path from 'node:path';
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '#lib/server/db';
-import { dataDir } from '#lib/server/paths';
+import { coversDir } from '#lib/server/paths';
 import { searchBooks, type BookSearchResult } from '#lib/server/booksearch';
-import { addBook, addBookManually } from '#lib/server/books';
+import { addBook, addBookManually, parseAuthors, type AddBookDeps } from '#lib/server/books';
+import { checkCover, MAX_COVER_BYTES } from '#lib/server/covers';
 import type { Actions, PageServerLoad } from './$types';
 
 /** Run the search when `?q=` is present so the page is bookmarkable. */
@@ -12,6 +12,10 @@ export const load: PageServerLoad = async ({ url }) => {
 	const results = q ? await searchBooks(q) : [];
 	return { q, results, searched: q !== '' };
 };
+
+function addDeps(): AddBookDeps {
+	return { db, coversDir: coversDir() };
+}
 
 function optional(value: FormDataEntryValue | null): string | null {
 	const s = typeof value === 'string' ? value.trim() : '';
@@ -25,21 +29,18 @@ function optionalNumber(value: FormDataEntryValue | null): number | null {
 	return Number.isFinite(n) ? n : null;
 }
 
-/** Reconstruct the picked result from the hidden fields the form carries. */
+/**
+ * Reconstruct the picked result from the hidden fields the form carries. These
+ * come from the browser, so `addBook` re-checks the work ID and only downloads
+ * covers from the providers' cover hosts.
+ */
 function resultFromForm(form: FormData): BookSearchResult {
-	let authors: string[] = [];
-	try {
-		const parsed = JSON.parse((form.get('authors') as string) || '[]');
-		if (Array.isArray(parsed)) authors = parsed.filter((a): a is string => typeof a === 'string');
-	} catch {
-		authors = [];
-	}
 	const source = form.get('source') === 'google-books' ? 'google-books' : 'open-library';
 	return {
 		source,
 		workId: optional(form.get('workId')),
-		title: (optional(form.get('title')) ?? '').toString(),
-		authors,
+		title: optional(form.get('title')) ?? '',
+		authors: parseAuthors(optional(form.get('authors')) ?? '[]'),
 		firstPublishYear: optionalNumber(form.get('firstPublishYear')),
 		coverUrl: optional(form.get('coverUrl')),
 		isbn: optional(form.get('isbn')),
@@ -48,16 +49,18 @@ function resultFromForm(form: FormData): BookSearchResult {
 	};
 }
 
+const MAX_COVER_MB = MAX_COVER_BYTES / (1024 * 1024);
+
 export const actions: Actions = {
 	add: async ({ request }) => {
 		const form = await request.formData();
 		const result = resultFromForm(form);
 		if (result.title === '') return fail(400, { error: 'This result has no title.' });
 
-		const { bookId } = await addBook(
-			{ db, coversDir: path.join(dataDir(), 'covers') },
-			{ result, whyRecommended: optional(form.get('whyRecommended')) }
-		);
+		const { bookId } = await addBook(addDeps(), {
+			result,
+			whyRecommended: optional(form.get('whyRecommended'))
+		});
 		// Open the Book (existing or just created) rather than a duplicate.
 		redirect(303, `/books/${bookId}`);
 	},
@@ -77,21 +80,24 @@ export const actions: Actions = {
 		const cover = form.get('cover');
 		let coverBytes: Uint8Array | null = null;
 		if (cover instanceof File && cover.size > 0) {
+			if (cover.size > MAX_COVER_BYTES) {
+				return fail(400, { manual: { error: `The cover must be ${MAX_COVER_MB} MB or smaller.` } });
+			}
 			coverBytes = new Uint8Array(await cover.arrayBuffer());
+			if (!checkCover(coverBytes).ok) {
+				return fail(400, { manual: { error: 'The cover must be a JPEG, PNG, GIF or WebP image.' } });
+			}
 		}
 
-		const { bookId } = addBookManually(
-			{ db, coversDir: path.join(dataDir(), 'covers') },
-			{
-				title,
-				authors,
-				isbn: optional(form.get('isbn')),
-				pageCount: optionalNumber(form.get('pageCount')),
-				description: optional(form.get('description')),
-				whyRecommended: optional(form.get('whyRecommended')),
-				cover: coverBytes
-			}
-		);
+		const { bookId } = addBookManually(addDeps(), {
+			title,
+			authors,
+			isbn: optional(form.get('isbn')),
+			pageCount: optionalNumber(form.get('pageCount')),
+			description: optional(form.get('description')),
+			whyRecommended: optional(form.get('whyRecommended')),
+			cover: coverBytes
+		});
 		// Open the Book (existing or just created) rather than a duplicate.
 		redirect(303, `/books/${bookId}`);
 	}
