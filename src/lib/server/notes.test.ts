@@ -4,7 +4,7 @@ import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import * as schema from './db/schema';
 import { books, notes, quotes } from './db/schema';
-import { annotatableBooks, canAnnotateBook, loadFeed } from './notes';
+import { annotatableBooks, canAnnotateBook, indexForDay, loadFeed, quoteOfTheDay } from './notes';
 
 type TestDb = BetterSQLite3Database<typeof schema>;
 
@@ -61,5 +61,26 @@ describe('annotatableBooks', () => {
 	it('refuses a Book that does not exist', () => {
 		const db = testDb();
 		expect(canAnnotateBook(db, 999)).toBe(false);
+	});
+});
+
+describe('quoteOfTheDay', () => {
+	it('is null without Quotes, and the same Quote all day', () => {
+		const db = testDb();
+		expect(quoteOfTheDay(db, '2026-11-21')).toBeNull();
+		const dune = book(db, 'Dune');
+		for (const text of ['One', 'Two', 'Three', 'Four', 'Five']) {
+			db.insert(quotes).values({ bookId: dune, text }).run();
+		}
+		const today = quoteOfTheDay(db, '2026-11-21');
+		expect(today?.book.title).toBe('Dune');
+		expect(quoteOfTheDay(db, '2026-11-21')?.id).toBe(today?.id);
+	});
+
+	it('spreads the days over the Quotes', () => {
+		const seen = new Set<number>();
+		for (let d = 1; d <= 28; d++) seen.add(indexForDay(`2026-02-${String(d).padStart(2, '0')}`, 5));
+		expect(seen.size).toBe(5);
+		expect(indexForDay('2026-11-21', 1)).toBe(0);
 	});
 });

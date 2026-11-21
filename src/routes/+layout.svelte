@@ -2,6 +2,8 @@
 	App shell. The three Reading Status lists live under a "Library" dropdown
 	(Reading, Bookstack, Books), then Shelves (the reader's Shelves), My
 	Reading (every Impression) and Marginalia (every Note and Quote). On the right, a book search bar submits to /add, which shows the Open Library results.
+	A slim strip in the accent colour above the bar carries the motto. The
+	light/dark switch sits at the right end of the bar.
 	The brand links to the start page (/). The dropdown is a disclosure: a button
 	with aria-expanded and a list of links. It closes on Escape, on a click
 	outside, and after navigating. On phones the whole nav folds into one
@@ -12,6 +14,7 @@
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import StatusIcon from '#lib/components/StatusIcon.svelte';
+	import ThemeSwitch from '#lib/components/ThemeSwitch.svelte';
 	import type { LayoutData } from './$types';
 
 	let { children, data }: { children: import('svelte').Snippet; data: LayoutData } = $props();
@@ -75,6 +78,7 @@
 
 {#if !onLogin}
 	<header>
+		<div class="motto"><p>because goodreads was hideous.</p></div>
 		<div class="bar">
 			<a class="brand" href="/">apostillas</a>
 			<nav class="desktop-nav" aria-label="Main">
@@ -202,6 +206,7 @@
 				/>
 			</form>
 			<div class="end">
+				<ThemeSwitch />
 				{#if data.gated}
 					<form method="POST" action="/logout">
 						<button type="submit" class="ghost small">Log out</button>
@@ -224,6 +229,19 @@
 		background: color-mix(in srgb, var(--bg) 85%, transparent);
 		backdrop-filter: blur(10px);
 		border-bottom: 1px solid var(--border);
+	}
+	.motto {
+		background: var(--accent);
+		color: var(--accent-contrast);
+	}
+	.motto p {
+		max-width: var(--content);
+		margin: 0 auto;
+		padding: 0.22rem 1.5rem;
+		font-size: 0.75rem;
+		font-weight: 550;
+		letter-spacing: 0.01em;
+		text-align: center;
 	}
 	.bar {
 		max-width: var(--content);

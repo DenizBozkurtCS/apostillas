@@ -38,6 +38,28 @@ export interface FeedQuote {
 	book: FeedBook;
 }
 
+/**
+ * Which of `count` items is the one for `day` (an ISO day): a hash of the day,
+ * so the pick looks random from one day to the next but stays the same all day.
+ */
+export function indexForDay(day: string, count: number): number {
+	let h = 2166136261;
+	for (let i = 0; i < day.length; i++) {
+		h ^= day.charCodeAt(i);
+		h = Math.imul(h, 16777619);
+	}
+	return (h >>> 0) % count;
+}
+
+/** The Quote of the day for the start page, with its Book; null when there are no Quotes. */
+export function quoteOfTheDay(db: Db, day: string): FeedQuote | null {
+	const { quotes } = loadFeed(db);
+	if (quotes.length === 0) return null;
+	// A stable order (oldest first), so adding a Quote doesn't reshuffle every day.
+	const ordered = [...quotes].sort((a, b) => a.id - b.id);
+	return ordered[indexForDay(day, ordered.length)];
+}
+
 /** A Book a new Quote or Note can be written about. */
 export interface AnnotatableBook {
 	id: number;
