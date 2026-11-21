@@ -1,7 +1,8 @@
 <!--
 	The Book page. Reading content comes first: a header with the cover and the
-	Reading Status switches and stars (ADR-0006), a short About, then tabs for
-	Impressions (shown first), Notes and Quotes. "Leave an Impression" opens the first. Managing
+	action panel (Reading Status switches, stars, and buttons that open the
+	Impression / Note / Quote forms; ADR-0006), a short About, then tabs for
+	Impressions (shown first), Notes and Quotes. Managing
 	the Book (details, cover, sync, delete) lives behind the ⋯ menu, in dialogs.
 
 	Forms submit with `enhance`, so the page does not reload and the open tab
@@ -108,10 +109,12 @@
 		};
 	}
 
-	/** "Leave an Impression": open the form in the Impressions tab and bring it into view. */
-	function leaveImpression() {
-		tab = 'impressions';
-		addingImpression = true;
+	/** The panel's buttons: open a tab's add form and bring it into view. */
+	function openAdder(kind: Tab) {
+		tab = kind;
+		addingImpression = kind === 'impressions';
+		addingNote = kind === 'notes';
+		addingQuote = kind === 'quotes';
 		requestAnimationFrame(() => tabsEl?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 	}
 	function toggleEdit(key: string) {
@@ -234,8 +237,12 @@
 				<p class="why">“{book.whyRecommended}”</p>
 			{/if}
 
-			<!-- Reading Status switches (each toggles on/off) and the Book's Rating.
-			     A star rates the Book and switches Read it on (ADR-0006). -->
+		</div>
+
+		<!-- Action panel: Reading Status switches (each toggles on/off), the
+		     Book's Rating (a star also switches Read it on, ADR-0006), and the
+		     buttons that open the add forms in the tabs below. -->
+		<div class="panel-actions">
 			<div class="statuses" role="group" aria-label="Reading status">
 				{#each switches as sw (sw.key)}
 					{@const isOn = book.statuses[sw.key] !== null}
@@ -244,39 +251,48 @@
 						<input type="hidden" name="on" value={isOn ? '0' : '1'} />
 						<button
 							type="submit"
-							class="icon status"
+							class="status"
 							class:on={isOn}
 							aria-pressed={isOn}
 							title={isOn ? `${sw.on} (click to undo)` : sw.off}
-							aria-label={sw.on}><StatusIcon status={sw.key} /></button
+							aria-label={sw.on}><StatusIcon status={sw.key} size={20} /></button
 						>
 					</form>
 				{/each}
-				<form method="POST" action="?/rate" class="rate" use:enhance={submit()}>
-					<span class="stars" role="group" aria-label="Rating">
-						{#each STARS_HIGH_TO_LOW as n (n)}
-							<button
-								type="submit"
-								name="rating"
-								value={n}
-								class={Number.isInteger(n) ? 'half-right' : 'half-left'}
-								class:lit={book.rating != null && n <= book.rating}
-								title={`Rate ${formatRating(n)} of 5`}
-								aria-label={`Rate ${formatRating(n)} of 5`}
-								aria-pressed={book.rating === n}><span aria-hidden="true">★</span></button
-							>
-						{/each}
-					</span>
-					{#if book.rating != null}
-						<span class="visually-hidden">Rated {formatRating(book.rating)} of 5</span>
-						<button type="submit" name="clear" value="1" class="ghost small clear-rating"
-							>Clear rating</button
-						>
-					{/if}
-				</form>
 			</div>
-			<button type="button" class="leave" onclick={leaveImpression}>Leave an Impression</button>
-
+			<form method="POST" action="?/rate" class="rate" use:enhance={submit()}>
+				<span class="stars" role="group" aria-label="Rating">
+					{#each STARS_HIGH_TO_LOW as n (n)}
+						<button
+							type="submit"
+							name="rating"
+							value={n}
+							class={Number.isInteger(n) ? 'half-right' : 'half-left'}
+							class:lit={book.rating != null && n <= book.rating}
+							title={`Rate ${formatRating(n)} of 5`}
+							aria-label={`Rate ${formatRating(n)} of 5`}
+							aria-pressed={book.rating === n}><span aria-hidden="true">★</span></button
+						>
+					{/each}
+				</span>
+				{#if book.rating != null}
+					<span class="visually-hidden">Rated {formatRating(book.rating)} of 5</span>
+				{/if}
+				<button
+					type="submit"
+					name="clear"
+					value="1"
+					class="ghost clear-rating"
+					class:hidden={book.rating == null}
+					title="Clear rating"
+					aria-label="Clear rating">×</button
+				>
+			</form>
+			<button type="button" class="primary" onclick={() => openAdder('impressions')}
+				>Leave an Impression</button
+			>
+			<button type="button" onclick={() => openAdder('notes')}>Add a Note</button>
+			<button type="button" onclick={() => openAdder('quotes')}>Add a Quote</button>
 			{#if form?.error}
 				<p class="error" role="alert">{form.error}</p>
 			{/if}
@@ -340,10 +356,6 @@
 							>
 						</div>
 					</form>
-				{:else}
-					<button type="button" class="small adder" onclick={() => (addingNote = true)}
-						>+ Add a Note</button
-					>
 				{/if}
 
 				{#if data.notes.length === 0}
@@ -414,10 +426,6 @@
 							>
 						</div>
 					</form>
-				{:else}
-					<button type="button" class="small adder" onclick={() => (addingQuote = true)}
-						>+ Add a Quote</button
-					>
 				{/if}
 
 				{#if data.quotes.length === 0}
@@ -489,10 +497,6 @@
 							>
 						</div>
 					</form>
-				{:else}
-					<button type="button" class="small adder" onclick={() => (addingImpression = true)}
-						>+ Leave an Impression</button
-					>
 				{/if}
 
 				{#if data.impressions.length === 0}
@@ -771,8 +775,8 @@
 	/* ---------- Hero ---------- */
 	.hero {
 		display: grid;
-		grid-template-columns: 10rem 1fr;
-		gap: 2rem;
+		grid-template-columns: 10rem 1fr 13rem;
+		gap: 1.75rem;
 		align-items: start;
 	}
 	.cover {
@@ -820,35 +824,46 @@
 	.facts {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.25rem 0;
+		gap: 0.15rem 1rem;
 		margin: 0.25rem 0 0;
 		font-size: 0.85rem;
 		color: var(--text-faint);
 	}
-	.facts span + span::before {
-		content: '·';
-		margin: 0 0.5rem;
+	.facts span {
+		white-space: nowrap;
 	}
 	.why {
 		margin: 0.25rem 0 0;
 		font-style: italic;
 		color: var(--text-muted);
 	}
-	/* Reading Status switches: square icon buttons, accent-filled when on. */
-	.statuses {
+	/* The action panel: one rectangle of status switches, stars and buttons. */
+	.panel-actions {
 		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 0.4rem;
-		margin-top: 1rem;
+		flex-direction: column;
+		gap: 0.6rem;
+		padding: 0.75rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		background: var(--surface);
+	}
+	.panel-actions > button {
+		width: 100%;
+	}
+	.statuses {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 0.5rem;
 	}
 	.statuses form {
 		margin: 0;
 	}
 	button.status {
-		width: 2.1rem;
-		height: 2.1rem;
+		width: 100%;
+		height: 2.4rem;
 		padding: 0;
+		display: grid;
+		place-items: center;
 	}
 	button.status.on,
 	button.status.on:hover {
@@ -857,16 +872,22 @@
 		color: var(--accent-contrast);
 	}
 	.rate {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-		margin-left: 0.3rem;
+		position: relative;
+		display: flex;
+		justify-content: center;
+		margin: 0.1rem 0;
 	}
 	.clear-rating {
+		position: absolute;
+		right: 0;
+		top: 50%;
+		transform: translateY(-50%);
+		padding: 0 0.4rem;
+		line-height: 1.4;
 		color: var(--text-faint);
 	}
-	.leave {
-		margin-top: 0.75rem;
+	.clear-rating.hidden {
+		visibility: hidden;
 	}
 
 	/* Stars: each button is one half of a 1em-wide glyph, drawn 5 → ½ and
@@ -883,7 +904,7 @@
 		padding: 0;
 		width: 0.5em;
 		overflow: hidden;
-		font-size: 1.35rem;
+		font-size: 1.6rem;
 		line-height: 1;
 		color: var(--star-empty);
 	}
@@ -976,6 +997,9 @@
 			grid-template-columns: 7rem 1fr;
 			gap: 1.25rem;
 		}
+		.panel-actions {
+			grid-column: 1 / -1;
+		}
 		.meta h1 {
 			font-size: 1.4rem;
 		}
@@ -1033,9 +1057,6 @@
 	[role='tab'][aria-selected='true'] {
 		color: var(--text);
 		border-bottom-color: var(--accent);
-	}
-	.adder {
-		margin-bottom: 0.5rem;
 	}
 	.empty {
 		font-size: 0.92rem;
