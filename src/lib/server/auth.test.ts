@@ -76,15 +76,12 @@ describe('isPublicPath', () => {
 });
 
 describe('sessionCookieOptions', () => {
-	it('is httpOnly and lax, and secure only in production', () => {
-		process.env.NODE_ENV = 'development';
-		const dev = sessionCookieOptions();
-		expect(dev.httpOnly).toBe(true);
-		expect(dev.sameSite).toBe('lax');
-		expect(dev.path).toBe('/');
-		expect(dev.secure).toBe(false);
-
-		process.env.NODE_ENV = 'production';
-		expect(sessionCookieOptions().secure).toBe(true);
+	it('is httpOnly and lax, and leaves secure to SvelteKit', () => {
+		const options = sessionCookieOptions();
+		expect(options.httpOnly).toBe(true);
+		expect(options.sameSite).toBe('lax');
+		expect(options.path).toBe('/');
+		// SvelteKit then makes it secure everywhere except dev and http://localhost.
+		expect('secure' in options).toBe(false);
 	});
 });

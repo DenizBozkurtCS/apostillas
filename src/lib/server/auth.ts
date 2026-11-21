@@ -69,16 +69,17 @@ export function isPublicPath(pathname: string): boolean {
 }
 
 /**
- * Options for the session cookie: httpOnly so scripts can't read it, lax so a
- * normal navigation carries it, and secure in production so it is only ever
- * sent over HTTPS.
+ * Options for the session cookie: httpOnly so scripts can't read it, and lax so
+ * a normal navigation carries it. `secure` is deliberately left to SvelteKit,
+ * whose default is secure everywhere except dev and http://localhost. Basing it
+ * on NODE_ENV would leave it off in production, because `node build` doesn't
+ * set NODE_ENV.
  */
 export function sessionCookieOptions() {
 	return {
 		path: '/',
 		httpOnly: true,
 		sameSite: 'lax' as const,
-		secure: process.env.NODE_ENV === 'production',
 		maxAge: 60 * 60 * 24 * 365
 	};
 }
