@@ -120,7 +120,11 @@
 			oninput={(e) => setQuery(e.currentTarget.value)}
 			onkeydown={onKeydown}
 			onblur={() => (active = -1)}
-			placeholder={filter.tags.length ? 'Add another #tag…' : 'Filter by title, author or #tag'}
+			placeholder={filter.tags.length
+				? 'Add another #tag…'
+				: tags.length
+					? 'Filter by title, author or #tag'
+					: 'Filter by title or author'}
 			aria-label="Filter by title, author or #tag"
 			role="combobox"
 			aria-autocomplete="list"

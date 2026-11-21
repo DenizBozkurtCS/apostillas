@@ -26,16 +26,23 @@ describe('allBooks', () => {
 	it('lists every Book, statuses or not, most recently added first', () => {
 		const items = allBooks([
 			book(1, { want: T(1) }, { createdAt: '2026-01-01 10:00:00' }),
-			book(2, {}, { createdAt: '2026-03-01 10:00:00', rating: 4, impressionYears: [2026] }),
+			book(2, {}, { createdAt: '2026-03-01 10:00:00' }),
 			book(3, { reading: T(2), finished: T(3) }, { createdAt: '2026-03-01 10:00:00' })
 		]);
 		expect(items.map((i) => i.bookId)).toEqual([3, 2, 1]);
-		expect(items.map((i) => i.statuses)).toEqual([
-			{ want: false, reading: true, finished: true },
-			{ want: false, reading: false, finished: false },
-			{ want: true, reading: false, finished: false }
+	});
+
+	it('carries only the Book itself: no statuses, Rating or Tags', () => {
+		const [item] = allBooks([
+			book(1, { finished: T(1) }, { rating: 4, impressionYears: [2026], tags: ['scifi'] })
 		]);
-		expect(items[1]).toMatchObject({ rating: 4, years: [2026] });
+		expect(item).toEqual({
+			bookId: 1,
+			title: 'Book 1',
+			authors: ['An Author'],
+			coverPath: null,
+			tags: []
+		});
 	});
 });
 

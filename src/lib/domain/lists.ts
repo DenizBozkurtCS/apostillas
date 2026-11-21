@@ -51,14 +51,6 @@ export interface FinishedItem extends BaseItem {
 	years: number[];
 }
 
-/**
- * An entry on the unlisted All books page: every Book in the library, with
- * which Reading Statuses it has (possibly none).
- */
-export interface AllBooksItem extends FinishedItem {
-	statuses: { want: boolean; reading: boolean; finished: boolean };
-}
-
 /** The three lists, one per Reading Status. */
 export interface Lists {
 	reading: ReadingItem[];
@@ -86,20 +78,15 @@ function bySinceDesc(since: (b: BookMeta) => string | null) {
 	};
 }
 
-/** Every Book, whatever its statuses, most recently added first (ties by newest Book). */
-export function allBooks(input: readonly BookMeta[]): AllBooksItem[] {
+/**
+ * Every Book for the unlisted All books page, most recently added first (ties
+ * by newest Book). The page is a plain catalogue, so entries carry only the
+ * Book's own data: no Reading Statuses, Rating or Tags.
+ */
+export function allBooks(input: readonly BookMeta[]): BaseItem[] {
 	return [...input]
 		.sort((a, b) => (a.createdAt !== b.createdAt ? (a.createdAt < b.createdAt ? 1 : -1) : b.id - a.id))
-		.map((b) => ({
-			...base(b),
-			rating: b.rating,
-			years: b.impressionYears,
-			statuses: {
-				want: b.statuses.want !== null,
-				reading: b.statuses.reading !== null,
-				finished: b.statuses.finished !== null
-			}
-		}));
+		.map((b) => ({ ...base(b), tags: [] }));
 }
 
 /**

@@ -1,24 +1,18 @@
 <!--
 	All books: every Book in the library, whatever its Reading Statuses, with a
 	box to add one by pasting its Goodreads link. Unlisted: nothing links here.
-	Each tile shows the Book's statuses (or "No status") and its Rating.
+	A plain catalogue: just covers, with nothing of the reader's own (no
+	statuses, Ratings or Tags).
 -->
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import BookCard from '#lib/components/BookCard.svelte';
 	import LibraryList from '#lib/components/LibraryList.svelte';
-	import Stars from '#lib/components/Stars.svelte';
-	import type { AllBooksItem } from '#lib/domain/lists';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let adding = $state(false);
-
-	function statusLine(s: AllBooksItem['statuses']): string {
-		const on = [s.reading && 'Reading', s.want && 'Bookstack', s.finished && 'Read'].filter(Boolean);
-		return on.length > 0 ? on.join(' · ') : 'No status';
-	}
 </script>
 
 <svelte:head>
@@ -30,16 +24,13 @@
 	title="All books"
 	items={data.books}
 	empty="No books in the library yet. Paste a Goodreads link above to add one."
-	ratingAndYear
 	sorts={[
 		{ key: 'recent', label: 'Recently added' },
 		{ key: 'recent:reversed', label: 'Oldest added' },
 		{ key: 'title', label: 'Title A–Z' },
 		{ key: 'title:reversed', label: 'Title Z–A' },
 		{ key: 'author', label: 'Author A–Z' },
-		{ key: 'author:reversed', label: 'Author Z–A' },
-		{ key: 'rating', label: 'Rating, high to low' },
-		{ key: 'rating:reversed', label: 'Rating, low to high' }
+		{ key: 'author:reversed', label: 'Author Z–A' }
 	]}
 >
 	{#snippet aside()}
@@ -87,16 +78,7 @@
 	{/snippet}
 
 	{#snippet card(item)}
-		<BookCard bookId={item.bookId} title={item.title} authors={item.authors} coverPath={item.coverPath}>
-			{#snippet detail()}
-				<span class="detail">
-					<span class="status" class:none={!item.statuses.want && !item.statuses.reading && !item.statuses.finished}
-						>{statusLine(item.statuses)}</span
-					>
-					{#if item.rating != null}<Stars rating={item.rating} />{/if}
-				</span>
-			{/snippet}
-		</BookCard>
+		<BookCard bookId={item.bookId} title={item.title} authors={item.authors} coverPath={item.coverPath} />
 	{/snippet}
 </LibraryList>
 
@@ -119,18 +101,5 @@
 	}
 	.notice a {
 		font-weight: 650;
-	}
-	.detail {
-		display: flex;
-		flex-direction: column;
-		gap: 0.15rem;
-	}
-	.status {
-		font-size: 0.78rem;
-		color: var(--text-muted);
-	}
-	.status.none {
-		color: var(--text-faint);
-		font-style: italic;
 	}
 </style>
