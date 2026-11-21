@@ -1,7 +1,8 @@
 <!--
 	My Reading (apostillas-v4/03): every Impression, newest first, grouped by
-	year. Each shows its Book's cover and title (linking to the Book), the date,
-	stars, ↻ / ⊘ markers and review, with Edit (in place) and Delete.
+	year. Every row is the same height: the Book's cover, its title and author
+	(linking to the Book) and the review cut to two lines; on the right, the
+	date, stars and ↻ / ⊘ icons, with Edit (in place) and Delete.
 	"+ Leave an Impression" opens a pop-up that first asks which Book (a search
 	over the library), then shows the Impression form with that Book's cover
 	and title beside it.
@@ -10,7 +11,8 @@
 	import { enhance, type SubmitFunction } from '$app/forms';
 	import Dialog from '#lib/components/Dialog.svelte';
 	import ImpressionFields from '#lib/components/ImpressionFields.svelte';
-	import ImpressionView from '#lib/components/ImpressionView.svelte';
+	import Stars from '#lib/components/Stars.svelte';
+	import { formatDay } from '#lib/format';
 	import BookPicker, { type PickableBook } from '#lib/components/BookPicker.svelte';
 	import ChosenBook from '#lib/components/ChosenBook.svelte';
 	import type { ActionData, PageData } from './$types';
@@ -90,39 +92,19 @@
 				<h2 id={`year-${group.year}`} class="year">{group.year}</h2>
 				<ul class="items">
 					{#each group.items as imp (imp.id)}
-						<li class="item">
+						<li class="item" class:editing={editing === imp.id}>
 							<a class="cover-link" href={`/books/${imp.book.id}`} tabindex="-1" aria-hidden="true">
 								{#if imp.book.coverPath}
-									<img src={`/${imp.book.coverPath}`} alt="" width="48" height="72" loading="lazy" />
+									<img src={`/${imp.book.coverPath}`} alt="" width="56" height="84" loading="lazy" />
 								{:else}
 									<span class="cover-none"></span>
 								{/if}
 							</a>
 							<div class="body">
-								<div class="head">
-									<a class="book" href={`/books/${imp.book.id}`}>
-										<span class="title">{imp.book.title}</span>
-										<span class="byline">{byline(imp.book.authors)}</span>
-									</a>
-									<div class="tools">
-										<button
-											type="button"
-											class="ghost small"
-											aria-expanded={editing === imp.id}
-											onclick={() => (editing = editing === imp.id ? null : imp.id)}
-											>{editing === imp.id ? 'Cancel' : 'Edit'}</button
-										>
-										<form
-											method="POST"
-											action="?/delete"
-											use:enhance={submit({ confirm: `Delete this Impression of ${imp.book.title}?` })}
-										>
-											<input type="hidden" name="bookId" value={imp.book.id} />
-											<input type="hidden" name="impressionId" value={imp.id} />
-											<button type="submit" class="ghost small danger">Delete</button>
-										</form>
-									</div>
-								</div>
+								<a class="book" href={`/books/${imp.book.id}`}>
+									<span class="title">{imp.book.title}</span>
+									<span class="byline">{byline(imp.book.authors)}</span>
+								</a>
 								{#if editing === imp.id}
 									<form
 										method="POST"
@@ -143,8 +125,40 @@
 											>
 										</div>
 									</form>
-								{:else}
-									<ImpressionView impression={imp} />
+								{:else if imp.review}
+									<p class="review">{imp.review}</p>
+								{/if}
+							</div>
+							<div class="side">
+								{#if editing !== imp.id}
+									<time datetime={imp.date}>{formatDay(imp.date)}</time>
+									<div class="marks">
+										{#if imp.rating != null}<Stars rating={imp.rating} />{/if}
+										{#if imp.reread}
+											<span class="icon" title="Reread" aria-label="Reread" role="img">↻</span>
+										{/if}
+										{#if imp.didNotFinish}
+											<span class="icon dnf" title="Didn't finish" aria-label="Didn't finish" role="img"
+												>⊘</span
+											>
+										{/if}
+									</div>
+								<div class="tools">
+									<button
+										type="button"
+										class="ghost small"
+										onclick={() => (editing = imp.id)}>Edit</button
+									>
+									<form
+										method="POST"
+										action="?/delete"
+										use:enhance={submit({ confirm: `Delete this Impression of ${imp.book.title}?` })}
+									>
+										<input type="hidden" name="bookId" value={imp.book.id} />
+										<input type="hidden" name="impressionId" value={imp.id} />
+										<button type="submit" class="ghost small danger">Delete</button>
+									</form>
+								</div>
 								{/if}
 							</div>
 						</li>
@@ -211,12 +225,19 @@
 		margin: 0;
 		padding: 0;
 	}
+	/* Every row the same height: the cover's. The review is cut to fit. */
 	.item {
+		--cover-w: 3.5rem;
 		display: grid;
-		grid-template-columns: 3rem 1fr;
+		grid-template-columns: var(--cover-w) minmax(0, 1fr) auto;
 		gap: 1rem;
+		height: calc(var(--cover-w) * 1.5 + 2rem);
 		padding: 1rem 0;
 		border-bottom: 1px solid var(--border);
+		box-sizing: border-box;
+	}
+	.item.editing {
+		height: auto;
 	}
 	.item:last-child {
 		border-bottom: none;
@@ -224,8 +245,8 @@
 	.cover-link img,
 	.cover-none {
 		display: block;
-		width: 3rem;
-		height: 4.5rem;
+		width: var(--cover-w);
+		height: calc(var(--cover-w) * 1.5);
 		object-fit: cover;
 		border-radius: var(--radius-sm);
 		box-shadow: 0 0 0 1px var(--border);
@@ -235,13 +256,7 @@
 	}
 	.body {
 		min-width: 0;
-	}
-	.head {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 0.75rem;
-		margin-bottom: 0.35rem;
+		overflow: hidden;
 	}
 	.book {
 		display: flex;
@@ -253,18 +268,63 @@
 	.book:hover .title {
 		color: var(--accent);
 	}
+	.title,
+	.byline {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
 	.title {
 		font-weight: 650;
-		overflow-wrap: anywhere;
 	}
 	.byline {
 		font-size: 0.85rem;
+		color: var(--text-muted);
+	}
+	.review {
+		margin: 0.35rem 0 0;
+		font-size: 0.85rem;
+		line-height: 1.45;
+		color: var(--text-muted);
+		overflow-wrap: anywhere;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+	.side {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 0.25rem;
+		text-align: right;
+	}
+	time {
+		font-size: 0.85rem;
+		font-weight: 600;
+		white-space: nowrap;
+	}
+	.marks {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		min-height: 1.2rem;
+	}
+	.icon {
+		color: var(--accent);
+		font-weight: 700;
+		line-height: 1;
+	}
+	.icon.dnf {
 		color: var(--text-muted);
 	}
 	.tools {
 		display: flex;
 		gap: 0.25rem;
 		flex-shrink: 0;
+		margin-top: auto;
+		margin-right: -0.5rem;
 		opacity: 0;
 		transition: opacity 0.15s;
 	}
@@ -281,6 +341,7 @@
 		margin: 0;
 	}
 	.edit {
+		margin-top: 0.6rem;
 		padding: 1rem;
 		border-radius: var(--radius);
 		background: var(--surface);
