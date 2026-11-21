@@ -1,6 +1,6 @@
 # Reading Statuses you set; remove Abandoned; reset the library
 
-Status: ready-for-human
+Status: closed
 Blocked by: —
 
 See ADR-0006 and **Reading Status** / **Rating** in `GLOSSARY.md`.
@@ -17,3 +17,5 @@ See ADR-0006 and **Reading Status** / **Rating** in `GLOSSARY.md`.
 - Shelf tiles show stars for any rated Book.
 
 ## Comments
+
+**RALPH (2026-11-21):** Built and pushed.
