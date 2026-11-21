@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildLists, type BookMeta } from './lists';
+import { allBooks, buildLists, type BookMeta } from './lists';
 import { NO_STATUSES, type Statuses } from './reading';
 
 /** Build a Book with sensible defaults; override what the test cares about. */
@@ -21,6 +21,23 @@ function book(id: number, statuses: Partial<Statuses>, over: Partial<BookMeta> =
 }
 
 const T = (day: number) => `2026-11-${String(day).padStart(2, '0')}T10:00:00.000Z`;
+
+describe('allBooks', () => {
+	it('lists every Book, statuses or not, most recently added first', () => {
+		const items = allBooks([
+			book(1, { want: T(1) }, { createdAt: '2026-01-01 10:00:00' }),
+			book(2, {}, { createdAt: '2026-03-01 10:00:00', rating: 4, impressionYears: [2026] }),
+			book(3, { reading: T(2), finished: T(3) }, { createdAt: '2026-03-01 10:00:00' })
+		]);
+		expect(items.map((i) => i.bookId)).toEqual([3, 2, 1]);
+		expect(items.map((i) => i.statuses)).toEqual([
+			{ want: false, reading: true, finished: true },
+			{ want: false, reading: false, finished: false },
+			{ want: true, reading: false, finished: false }
+		]);
+		expect(items[1]).toMatchObject({ rating: 4, years: [2026] });
+	});
+});
 
 describe('buildLists', () => {
 	it('puts each Book on every list whose status it has', () => {

@@ -59,11 +59,14 @@ export function storedCoverFile(name: string): { name: string; mime: string } | 
 	return { name, mime: BY_EXT.get(match[1])!.mime };
 }
 
-/** Hosts the search providers serve cover images from. */
+/** Hosts the search providers and Goodreads serve cover images from. */
 const COVER_HOSTS = new Set([
 	'covers.openlibrary.org',
 	'books.google.com',
-	'books.googleusercontent.com'
+	'books.googleusercontent.com',
+	'm.media-amazon.com',
+	'images-na.ssl-images-amazon.com',
+	'i.gr-assets.com'
 ]);
 
 /**

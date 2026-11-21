@@ -8,8 +8,8 @@
  * Book is added — it is never fetched live on display (ADR-0003).
  */
 
-/** Which provider a result came from. */
-export type BookSource = 'open-library' | 'google-books';
+/** Which provider a result came from (`goodreads`: a pasted Goodreads link, see goodreads.ts). */
+export type BookSource = 'open-library' | 'google-books' | 'goodreads';
 
 /** A single match from a provider, normalised across Open Library and Google Books. */
 export interface BookSearchResult {

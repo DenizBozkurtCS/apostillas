@@ -3,7 +3,7 @@
 	shelf of cover tiles. Sort and filters live in this component's state, so
 	every visit starts from the default sort with no filters, and nothing goes
 	into the URL. Each list passes its items, its sort options and a `card`
-	snippet for one tile.
+	snippet for one tile, and may put its own controls in the heading (`aside`).
 -->
 <script lang="ts" generics="T extends ViewItem">
 	import type { Snippet } from 'svelte';
@@ -27,7 +27,8 @@
 		empty,
 		sorts,
 		ratingAndYear = false,
-		card
+		card,
+		aside
 	}: {
 		title: string;
 		items: T[];
@@ -38,6 +39,8 @@
 		/** Offer the minimum-rating and year-finished filters (Books). */
 		ratingAndYear?: boolean;
 		card: Snippet<[T]>;
+		/** Extra controls at the right of the heading. */
+		aside?: Snippet;
 	} = $props();
 
 	// svelte-ignore state_referenced_locally
@@ -62,6 +65,9 @@
 	{#if items.length > 0}
 		<span class="count">{filtering ? `${shown.length} of ${items.length}` : items.length}</span>
 	{/if}
+	{#if aside}
+		<div class="aside">{@render aside()}</div>
+	{/if}
 </div>
 
 {#if items.length === 0}
@@ -85,6 +91,14 @@
 {/if}
 
 <style>
+	.page-head {
+		flex-wrap: wrap;
+	}
+	.aside {
+		margin-left: auto;
+		max-width: 100%;
+		align-self: center;
+	}
 	.shelf {
 		list-style: none;
 		padding: 0;

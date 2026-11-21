@@ -47,6 +47,8 @@ describe('trustedCoverUrl', () => {
 		expect(trustedCoverUrl('http://books.google.com/books/content?id=x&img=1')).toBe(
 			'https://books.google.com/books/content?id=x&img=1'
 		);
+		const goodreads = 'https://m.media-amazon.com/images/S/compressed.photo.goodreads.com/books/1i/1.jpg';
+		expect(trustedCoverUrl(goodreads)).toBe(goodreads);
 	});
 
 	it('refuses other hosts, schemes, ports and credentials', () => {
