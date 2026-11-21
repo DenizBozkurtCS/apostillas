@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildLists, type BookWithReads } from './lists';
+import { buildLists, currentRating, type BookWithReads } from './lists';
 import type { Outcome, Read } from './reading';
 
 /** Build a Read with sensible defaults; override what the test cares about. */
@@ -116,5 +116,29 @@ describe('buildLists', () => {
 		]);
 		expect(lists.finished.map((i) => i.bookId)).toEqual([1]);
 		expect(lists.abandoned).toEqual([]);
+	});
+});
+
+describe('currentRating', () => {
+	it('is the rating of the most recent Finished Read', () => {
+		const reads = [
+			read({ id: 1, outcome: 'finished', endDate: '2024-01-01', rating: 3 }),
+			read({ id: 2, outcome: 'finished', endDate: '2026-01-01', rating: 4.5 }),
+			read({ id: 3, outcome: 'abandoned', endDate: '2026-06-01', rating: 1 })
+		];
+		expect(currentRating(reads)).toBe(4.5);
+	});
+
+	it('is null when the most recent Finished Read is unrated, even if an older one is rated', () => {
+		const reads = [
+			read({ id: 1, outcome: 'finished', endDate: '2024-01-01', rating: 5 }),
+			read({ id: 2, outcome: 'finished', endDate: '2026-01-01' })
+		];
+		expect(currentRating(reads)).toBeNull();
+	});
+
+	it('is null with no Finished Read', () => {
+		expect(currentRating([read({ id: 1, outcome: 'open', startDate: '2026-01-01' })])).toBeNull();
+		expect(currentRating([])).toBeNull();
 	});
 });

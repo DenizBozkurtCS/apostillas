@@ -88,6 +88,15 @@ function mostRecent(reads: readonly Read[], outcome: Outcome): Read | null {
 	return best;
 }
 
+/**
+ * A Book's current rating: the rating of its most recent Finished Read, or null
+ * when it has no Finished Read or that Read is unrated. The Books list and the
+ * Book page both show this one.
+ */
+export function currentRating(reads: readonly Read[]): number | null {
+	return mostRecent(reads, 'finished')?.rating ?? null;
+}
+
 /** Descending string compare with nulls last; ties broken by bookId descending. */
 function byDateDesc<T extends { bookId: number }>(date: (i: T) => string | null) {
 	return (a: T, b: T): number => {
@@ -126,7 +135,7 @@ export function buildLists(input: readonly BookWithReads[]): Lists {
 				finished.push({
 					...base(book),
 					finishDate: latest.endDate,
-					rating: latest.rating,
+					rating: currentRating(reads),
 					isReread: isReread(latest, reads)
 				});
 				break;

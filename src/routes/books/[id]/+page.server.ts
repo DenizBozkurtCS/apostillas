@@ -39,6 +39,7 @@ import {
 	editQuote,
 	loadAnnotations
 } from '#lib/server/annotations';
+import { currentRating } from '#lib/domain/lists';
 import { deleteReadMessage } from '#lib/format';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -108,6 +109,8 @@ export const load: PageServerLoad = async ({ params, url }) => {
 	return {
 		book,
 		status,
+		// Rating of the most recent Finished Read, shown in the header.
+		rating: currentRating(reads),
 		reads: readItems,
 		quoteCount,
 		noteCount,

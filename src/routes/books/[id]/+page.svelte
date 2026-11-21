@@ -8,7 +8,7 @@
 -->
 <script lang="ts">
 	import { enhance, type SubmitFunction } from '$app/forms';
-	import { formatDay, statusLabel } from '#lib/format';
+	import { formatDay, formatRating, statusLabel } from '#lib/format';
 	import Dialog from '#lib/components/Dialog.svelte';
 	import Stars from '#lib/components/Stars.svelte';
 	import StarInput from '#lib/components/StarInput.svelte';
@@ -240,6 +240,12 @@
 			</div>
 			<h1>{book.title}</h1>
 			<p class="byline">{byline}</p>
+			{#if data.rating != null}
+				<p class="rating">
+					<Stars rating={data.rating} />
+					<span class="rating-value" aria-hidden="true">{formatRating(data.rating)}</span>
+				</p>
+			{/if}
 			<p class="facts">
 				{#if book.pageCount}<span>{book.pageCount} pages</span>{/if}
 				{#if book.isbn}<span>ISBN {book.isbn}</span>{/if}
@@ -811,6 +817,19 @@
 	.byline {
 		margin: 0;
 		font-size: 1.05rem;
+		color: var(--text-muted);
+	}
+	.rating {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin: 0;
+		font-size: 1.35rem;
+		line-height: 1;
+	}
+	.rating-value {
+		font-size: 0.9rem;
+		font-weight: 600;
 		color: var(--text-muted);
 	}
 	.facts {
