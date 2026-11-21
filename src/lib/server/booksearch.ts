@@ -161,6 +161,34 @@ interface OpenLibraryEdition {
 	covers?: number[];
 }
 
+/**
+ * An Open Library work's current metadata, in the same shape as a search
+ * result, with its description filled in. Used to re-sync a Book's metadata.
+ * Returns null for an invalid work ID, a failed request, or an unknown work.
+ */
+export async function fetchOpenLibraryWork(
+	workId: string,
+	fetchImpl: FetchLike = fetch
+): Promise<BookSearchResult | null> {
+	if (!isOpenLibraryWorkId(workId)) return null;
+	try {
+		const url =
+			'https://openlibrary.org/search.json?limit=1' +
+			`&fields=${OPEN_LIBRARY_FIELDS}` +
+			`&q=${encodeURIComponent(`key:${workId}`)}`;
+		const res = await fetchImpl(url);
+		if (!res.ok) return null;
+		const body = (await res.json()) as { docs?: OpenLibraryDoc[] };
+		const doc = body.docs?.find((d) => d.key === workId);
+		if (!doc) return null;
+		const work = mapOpenLibraryDoc(doc);
+		work.description = await fetchOpenLibraryDescription(workId, fetchImpl);
+		return work;
+	} catch {
+		return null;
+	}
+}
+
 async function searchGoogleBooks(q: string, fetchImpl: FetchLike): Promise<BookSearchResult[]> {
 	const url =
 		'https://www.googleapis.com/books/v1/volumes?maxResults=20' +

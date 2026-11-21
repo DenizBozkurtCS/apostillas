@@ -238,6 +238,19 @@
 			</label>
 			<button type="submit">Save details</button>
 		</form>
+
+		{#if book.workId}
+			<form
+				method="POST"
+				action="?/syncMeta"
+				class="stack"
+				onsubmit={confirmSubmit(
+					'Replace the title, authors, description, ISBN and page count with Open Library\'s current data? "Why / recommended by" and the cover stay as they are.'
+				)}
+			>
+				<button type="submit">Sync details from Open Library</button>
+			</form>
+		{/if}
 	</details>
 
 	<!-- Change cover -->

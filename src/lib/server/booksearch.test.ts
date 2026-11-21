@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
 	fetchOpenLibraryDescription,
+	fetchOpenLibraryWork,
 	fetchWorkEditionCovers,
 	searchBooks,
 	type BookSearchResult
@@ -166,5 +167,58 @@ describe('fetchWorkEditionCovers', () => {
 	it('returns an empty list when the request fails', async () => {
 		const fetchImpl = vi.fn(async () => new Response('nope', { status: 500 }));
 		expect(await fetchWorkEditionCovers('/works/OL45883W', fetchImpl)).toEqual([]);
+	});
+});
+
+describe('fetchOpenLibraryWork', () => {
+	it('looks the work up by key and adds its description', async () => {
+		const calls: string[] = [];
+		const fetchImpl = vi.fn(async (url: string) => {
+			calls.push(url);
+			const body = url.includes('/search.json')
+				? {
+						docs: [
+							{
+								key: '/works/OL45883W',
+								title: 'Dune',
+								author_name: ['Frank Herbert'],
+								first_publish_year: 1965,
+								cover_i: 42,
+								isbn: ['9780441013593'],
+								number_of_pages_median: 412
+							}
+						]
+					}
+				: { description: { value: 'A desert planet.' } };
+			return new Response(JSON.stringify(body), { status: 200 });
+		});
+
+		const work = await fetchOpenLibraryWork('/works/OL45883W', fetchImpl);
+
+		expect(calls[0]).toContain('q=key%3A%2Fworks%2FOL45883W');
+		expect(work).toMatchObject({
+			workId: '/works/OL45883W',
+			title: 'Dune',
+			authors: ['Frank Herbert'],
+			isbn: '9780441013593',
+			pageCount: 412,
+			description: 'A desert planet.'
+		});
+	});
+
+	it('returns null when the work is not found or the request fails', async () => {
+		const empty = stubFetch({ [OPEN_LIBRARY]: { docs: [] } });
+		expect(await fetchOpenLibraryWork('/works/OL1W', empty.fetchImpl)).toBeNull();
+
+		const failing = vi.fn(async () => {
+			throw new Error('offline');
+		});
+		expect(await fetchOpenLibraryWork('/works/OL1W', failing)).toBeNull();
+	});
+
+	it('returns null for an invalid work ID without fetching', async () => {
+		const fetchImpl = vi.fn();
+		expect(await fetchOpenLibraryWork('/authors/OL1A', fetchImpl)).toBeNull();
+		expect(fetchImpl).not.toHaveBeenCalled();
 	});
 });

@@ -16,7 +16,7 @@ import type { Db } from './books';
 import { parseAuthors } from './books';
 import { books, notes, quotes, reads } from './db/schema';
 import { downloadCover, writeCover } from './covers';
-import type { FetchLike } from './booksearch';
+import { fetchOpenLibraryWork, type BookSearchResult, type FetchLike } from './booksearch';
 
 /** A Book's stored metadata, parsed into the shapes the page uses. */
 export interface BookRow {
@@ -128,6 +128,40 @@ export function updateBookMetadata(db: Db, id: number, input: BookMetaInput): vo
 		})
 		.where(eq(books.id, id))
 		.run();
+}
+
+/** Looks up an Open Library work's current metadata; null when unavailable. */
+export type WorkLookup = (workId: string) => Promise<BookSearchResult | null>;
+
+/**
+ * Re-copy a Book's metadata from its Open Library work, undoing local edits to
+ * title, authors, description, ISBN and page count. Fields Open Library has no
+ * value for keep their current value. "Why / recommended by" and the cover
+ * are the reader's own choices and are never touched.
+ */
+export async function syncBookMetadata(
+	db: Db,
+	id: number,
+	lookup: WorkLookup = (workId) => fetchOpenLibraryWork(workId)
+): Promise<'synced' | 'no-source' | 'unavailable'> {
+	const row = db.select().from(books).where(eq(books.id, id)).get();
+	if (!row?.workId) return 'no-source';
+
+	const work = await lookup(row.workId);
+	if (!work || work.title === '') return 'unavailable';
+
+	db
+		.update(books)
+		.set({
+			title: work.title,
+			authors: JSON.stringify(work.authors),
+			description: work.description !== '' ? work.description : row.description,
+			isbn: work.isbn ?? row.isbn,
+			pageCount: work.pageCount ?? row.pageCount
+		})
+		.where(eq(books.id, id))
+		.run();
+	return 'synced';
 }
 
 /** Remove a stored cover file (named `<id>.<ext>`) from the covers folder. */

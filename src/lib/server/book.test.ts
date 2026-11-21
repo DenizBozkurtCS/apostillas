@@ -14,6 +14,7 @@ import {
 	loadBookDetail,
 	setBookCoverFromBytes,
 	setBookCoverFromUrl,
+	syncBookMetadata,
 	updateBookMetadata
 } from './book';
 
@@ -246,5 +247,73 @@ describe('setBookCoverFromUrl', () => {
 		expect(coverPath).toBeNull();
 		expect(fetchImpl).not.toHaveBeenCalled();
 		expect(db.select().from(books).where(eq(books.id, id)).get()!.coverPath).toBeNull();
+	});
+});
+
+describe('syncBookMetadata', () => {
+	const work = {
+		source: 'open-library' as const,
+		workId: '/works/OL45883W',
+		title: 'Dune',
+		authors: ['Frank Herbert'],
+		firstPublishYear: 1965,
+		coverUrl: 'https://covers.openlibrary.org/b/id/42-L.jpg',
+		isbn: '9780441013593',
+		pageCount: 412,
+		description: 'A desert planet.'
+	};
+
+	it('restores title, authors, description and Edition fields from Open Library', async () => {
+		const db = testDb();
+		const id = seedBook(db, {
+			title: 'Dune (my edit)',
+			authors: JSON.stringify(['Someone']),
+			description: 'Mine.',
+			workId: '/works/OL45883W',
+			isbn: '111',
+			pageCount: 1,
+			whyRecommended: 'A friend',
+			coverPath: 'covers/1.jpg'
+		});
+
+		const result = await syncBookMetadata(db, id, async () => work);
+
+		expect(result).toBe('synced');
+		const row = db.select().from(books).where(eq(books.id, id)).get()!;
+		expect(row.title).toBe('Dune');
+		expect(JSON.parse(row.authors)).toEqual(['Frank Herbert']);
+		expect(row.description).toBe('A desert planet.');
+		expect(row.isbn).toBe('9780441013593');
+		expect(row.pageCount).toBe(412);
+		// The reader's own fields and the chosen cover are kept.
+		expect(row.whyRecommended).toBe('A friend');
+		expect(row.coverPath).toBe('covers/1.jpg');
+	});
+
+	it('keeps current values where Open Library has none', async () => {
+		const db = testDb();
+		const id = seedBook(db, { workId: '/works/OL45883W', description: 'Mine.', isbn: '111', pageCount: 5 });
+
+		await syncBookMetadata(db, id, async () => ({ ...work, description: '', isbn: null, pageCount: null }));
+
+		const row = db.select().from(books).where(eq(books.id, id)).get()!;
+		expect(row.description).toBe('Mine.');
+		expect(row.isbn).toBe('111');
+		expect(row.pageCount).toBe(5);
+	});
+
+	it('reports no-source for a Book without an Open Library work ID', async () => {
+		const db = testDb();
+		const id = seedBook(db);
+		const lookup = vi.fn();
+		expect(await syncBookMetadata(db, id, lookup)).toBe('no-source');
+		expect(lookup).not.toHaveBeenCalled();
+	});
+
+	it('reports unavailable and changes nothing when the lookup fails', async () => {
+		const db = testDb();
+		const id = seedBook(db, { workId: '/works/OL45883W', title: 'Mine' });
+		expect(await syncBookMetadata(db, id, async () => null)).toBe('unavailable');
+		expect(db.select().from(books).where(eq(books.id, id)).get()!.title).toBe('Mine');
 	});
 });

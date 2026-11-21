@@ -9,6 +9,7 @@ import {
 	loadBookDetail,
 	setBookCoverFromBytes,
 	setBookCoverFromUrl,
+	syncBookMetadata,
 	updateBookMetadata,
 	type BookDetail
 } from '#lib/server/book';
@@ -217,6 +218,19 @@ export const actions: Actions = {
 		}
 		if (!setBookCoverFromBytes(db, coversDir(), id, bytes)) {
 			return fail(400, { coverError: 'The cover must be a JPEG, PNG, GIF or WebP image.' });
+		}
+	},
+
+	/** Re-copy title, authors, description, ISBN and page count from Open Library. */
+	syncMeta: async ({ params }) => {
+		const id = parseId(params.id);
+		requireBook(id);
+		const result = await syncBookMetadata(db, id);
+		if (result === 'no-source') {
+			return fail(400, { metaError: 'This book was not added from Open Library, so there is nothing to sync from.' });
+		}
+		if (result === 'unavailable') {
+			return fail(502, { metaError: 'Open Library could not be reached. Try again later.' });
 		}
 	},
 
