@@ -1,7 +1,7 @@
 <!--
 	The Book page. Reading content comes first: a header with the cover and the
 	Reading Status switches and stars (ADR-0006), a short About, then tabs for
-	Notes, Quotes and Impressions. "Leave an Impression" opens the last one. Managing
+	Impressions (shown first), Notes and Quotes. "Leave an Impression" opens the first. Managing
 	the Book (details, cover, sync, delete) lives behind the ⋯ menu, in dialogs.
 
 	Forms submit with `enhance`, so the page does not reload and the open tab
@@ -35,15 +35,14 @@
 	type Tab = 'notes' | 'quotes' | 'impressions';
 	type DialogName = 'details' | 'cover' | 'sync' | 'shelves' | 'delete';
 
-	const tabs = $derived<{ id: Tab; label: string; count: number }[]>([
-		{ id: 'notes', label: 'Notes', count: data.notes.length },
-		{ id: 'quotes', label: 'Quotes', count: data.quotes.length },
-		{ id: 'impressions', label: 'Impressions', count: data.impressions.length }
-	]);
+	const tabs: { id: Tab; label: string }[] = [
+		{ id: 'impressions', label: 'Impressions' },
+		{ id: 'notes', label: 'Notes' },
+		{ id: 'quotes', label: 'Quotes' }
+	];
 
-	let tab = $state<Tab>('notes');
-	/** The tab actually shown: the chosen one if on offer, else the first. */
-	const activeTab = $derived(tabs.some((t) => t.id === tab) ? tab : tabs[0]?.id);
+	let tab = $state<Tab>('impressions');
+	const activeTab = $derived(tab);
 
 	/** Which Quote or Note is being edited in place, e.g. `quote-12`. */
 	let editing = $state<string | null>(null);
@@ -315,7 +314,6 @@
 					onclick={() => (tab = t.id)}
 				>
 					{t.label}
-					<span class="tab-count">{t.count}</span>
 				</button>
 			{/each}
 		</div>
@@ -1035,18 +1033,6 @@
 	[role='tab'][aria-selected='true'] {
 		color: var(--text);
 		border-bottom-color: var(--accent);
-	}
-	.tab-count {
-		font-size: 0.78rem;
-		font-weight: 600;
-		color: var(--text-faint);
-		background: var(--surface);
-		border-radius: 999px;
-		padding: 0 0.45rem;
-	}
-	[role='tab'][aria-selected='true'] .tab-count {
-		color: var(--accent);
-		background: var(--accent-soft);
 	}
 	.adder {
 		margin-bottom: 0.5rem;
