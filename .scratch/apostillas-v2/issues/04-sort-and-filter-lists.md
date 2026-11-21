@@ -1,6 +1,6 @@
 # Sort and filter the Library lists; cover-only tiles
 
-Status: ready-for-human
+Status: closed
 Blocked by: 03
 
 ## Acceptance criteria
@@ -32,3 +32,5 @@ Blocked by: 03
 - A Book without a cover keeps its placeholder showing the title and author.
 
 ## Comments
+
+**RALPH (2026-11-21):** Done: sort, filter, cover-only tiles
