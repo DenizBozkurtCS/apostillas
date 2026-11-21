@@ -1,6 +1,7 @@
 <!--
 	App shell. The four Reading Status lists live under a "Library" dropdown
-	(Reading, Bookstack, Books, Abandoned); Search and Add book sit beside it.
+	(Reading, Bookstack, Books, Abandoned) beside Search (Quotes and Notes). On the
+	right, a book search bar submits to /add, which shows the Open Library results.
 	The brand links to the start page (/). The dropdown is a disclosure: a button
 	with aria-expanded and a list of links. It closes on Escape, on a click
 	outside, and after navigating.
@@ -26,6 +27,11 @@
 
 	// Exact match: /books/12 is a Book page, not the Books list.
 	const currentList = $derived(lists.find((l) => l.href === page.url.pathname));
+
+	// Keep the navbar book search filled in while showing its results.
+	const addQuery = $derived(
+		page.url.pathname === '/add' ? (page.url.searchParams.get('q') ?? '') : ''
+	);
 
 	let open = $state(false);
 	let library: HTMLElement | undefined = $state();
@@ -99,8 +105,26 @@
 					aria-current={page.url.pathname.startsWith('/search') ? 'page' : undefined}>Search</a
 				>
 			</nav>
+			<!-- Book search (Open Library): results open on the Add page. -->
+			<form method="GET" action="/add" class="book-search" role="search">
+				<svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"
+					><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2" /><path
+						d="M20 20l-3.5-3.5"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+					/></svg
+				>
+				<input
+					name="q"
+					type="search"
+					value={addQuery}
+					placeholder="Find a book to add…"
+					aria-label="Find a book to add"
+					required
+				/>
+			</form>
 			<div class="end">
-				<a class="button primary small" href="/add"><span aria-hidden="true">+</span> Add book</a>
 				{#if data.gated}
 					<form method="POST" action="/logout">
 						<button type="submit" class="ghost small">Log out</button>
@@ -222,20 +246,56 @@
 		color: var(--accent);
 	}
 
+	.book-search {
+		position: relative;
+		margin: 0 0 0 auto;
+		flex: 0 1 18rem;
+		min-width: 0;
+	}
+	.book-search input {
+		padding: 0.4rem 0.7rem 0.4rem 2rem;
+		font-size: 0.9rem;
+		border-radius: 999px;
+		background: var(--surface);
+		border-color: var(--border);
+	}
+	.book-search input:focus-visible {
+		background: var(--bg);
+	}
+	.search-icon {
+		position: absolute;
+		left: 0.7rem;
+		top: 50%;
+		transform: translateY(-50%);
+		color: var(--text-faint);
+		pointer-events: none;
+	}
 	.end {
-		margin-left: auto;
 		display: flex;
 		align-items: center;
 		gap: 0.25rem;
+	}
+	.end:empty {
+		display: none;
 	}
 	.end form {
 		margin: 0;
 	}
 
-	@media (max-width: 30rem) {
+	/* Phones: the book search drops to its own full-width row. */
+	@media (max-width: 40rem) {
 		.bar {
+			flex-wrap: wrap;
 			padding: 0.6rem 1rem;
 			gap: 0.5rem;
+		}
+		.end {
+			margin-left: auto;
+		}
+		.book-search {
+			order: 3;
+			flex: 1 1 100%;
+			margin: 0;
 		}
 		.nav-item {
 			padding: 0.35rem 0.5rem;

@@ -8,33 +8,34 @@
 	// Star buttons, highest first; CSS reverses them so ½ shows on the left.
 	const STARS_HIGH_TO_LOW = [...RATING_STEPS].reverse();
 
-	// Suggest hand entry when a search ran but found nothing, or after a failed
-	// manual submission, so the open form is not lost.
+	// Open hand entry when there is nothing to pick from (no search yet, or a
+	// search found nothing), or after a failed manual submission, so the open
+	// form is not lost.
 	const suggestManual = $derived(
-		(data.searched && data.results.length === 0) || Boolean(form?.manual)
+		!data.searched || data.results.length === 0 || Boolean(form?.manual)
 	);
 </script>
 
 <svelte:head>
-	<title>Add a book · apostillas</title>
+	<title>{data.searched ? `“${data.q}” · Add a book` : 'Add a book'} · apostillas</title>
 </svelte:head>
 
+<!-- The search box is the navbar's book search; this page shows its results. -->
 <div class="add-page">
 	<div class="page-head">
-		<h1>Add a book</h1>
+		{#if data.searched}
+			<h1>Results for “{data.q}”</h1>
+			{#if data.results.length > 0}<span class="count">{data.results.length}</span>{/if}
+		{:else}
+			<h1>Add a book</h1>
+		{/if}
 	</div>
 
-	<form method="GET" class="search" role="search">
-		<label class="visually-hidden" for="add-q">Search by title, author, or ISBN</label>
-		<input
-			id="add-q"
-			name="q"
-			type="search"
-			value={data.q}
-			placeholder="Search by title, author, or ISBN"
-		/>
-		<button type="submit" class="primary">Search</button>
-	</form>
+	{#if !data.searched}
+		<p class="muted">
+			Search by title, author, or ISBN in the bar at the top, or add a book by hand below.
+		</p>
+	{/if}
 
 	{#if data.searched}
 		{#if data.results.length === 0}
@@ -206,15 +207,8 @@
 		max-width: var(--content-narrow);
 		margin: 0 auto;
 	}
-	.search {
-		display: flex;
-		gap: 0.5rem;
-		margin-bottom: 1.75rem;
-	}
-	.search input {
-		flex: 1;
-		font-size: 1rem;
-		padding: 0.6rem 0.8rem;
+	.page-head + .muted {
+		margin-top: -0.75rem;
 	}
 
 	.results {
