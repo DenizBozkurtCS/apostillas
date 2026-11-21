@@ -21,7 +21,7 @@
 	--accent-contrast: #ffffff;
 	--danger: #dc2626;
 	--danger-soft: #fef2f2;
-	--star: #eab308;
+	--star: var(--accent);
 	--star-empty: #d4d4d8;
 	--mark: #fde68a;
 	--shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.08);
@@ -55,7 +55,6 @@
 		--accent-contrast: #1c0f1f;
 		--danger: #f87171;
 		--danger-soft: #2a1414;
-		--star: #facc15;
 		--star-empty: #3f3f46;
 		--mark: #854d0e;
 		--shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5);
