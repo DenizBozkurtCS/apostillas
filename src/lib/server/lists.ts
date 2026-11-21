@@ -23,6 +23,11 @@ function parseAuthors(json: string): string[] {
 
 /** Build the four lists from the whole store. Single-user, so reading all rows is fine. */
 export function getLists(db: Db): Lists {
+	return buildLists(loadBooksWithReads(db));
+}
+
+/** Every Book with its Reads, parsed into the domain shapes. */
+export function loadBooksWithReads(db: Db): BookWithReads[] {
 	const bookRows = db.select().from(books).all();
 	const readRows = db.select().from(reads).all();
 
@@ -41,7 +46,7 @@ export function getLists(db: Db): Lists {
 		else readsByBook.set(r.bookId, [read]);
 	}
 
-	const input: BookWithReads[] = bookRows.map((b) => ({
+	return bookRows.map((b) => ({
 		book: {
 			id: b.id,
 			title: b.title,
@@ -52,6 +57,4 @@ export function getLists(db: Db): Lists {
 		},
 		reads: readsByBook.get(b.id) ?? []
 	}));
-
-	return buildLists(input);
 }

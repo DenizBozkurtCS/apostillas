@@ -24,6 +24,7 @@ import {
 	logPastFinished,
 	openRead,
 	readingStatus,
+	readsNewestFirst,
 	revertToWantToRead,
 	start,
 	statusAfterDeleting,
@@ -77,16 +78,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
 	const status = readingStatus(reads);
 	const annotationCount = quoteCount + noteCount;
 
-	// Newest Read first: by date (start, or end for a logged past Read), ties by id.
-	const anchor = (r: (typeof reads)[number]) => r.startDate ?? r.endDate ?? '';
-	const ordered = [...reads].sort((a, b) => {
-		const aa = anchor(a);
-		const bb = anchor(b);
-		if (aa !== bb) return aa < bb ? 1 : -1;
-		return b.id - a.id;
-	});
-
-	const readItems = ordered.map((r) => ({
+	const readItems = readsNewestFirst(reads).map((r) => ({
 		...r,
 		isReread: isReread(r, reads),
 		deleteMessage: deleteReadMessage({

@@ -8,7 +8,8 @@
 -->
 <script lang="ts">
 	import { enhance, type SubmitFunction } from '$app/forms';
-	import { formatDay, statusLabel } from '#lib/format';
+	import { formatDay, outcomeLabel, readLabel, statusLabel } from '#lib/format';
+	import MarkdownEditor from '#lib/components/MarkdownEditor.svelte';
 	import Dialog from '#lib/components/Dialog.svelte';
 	import Stars from '#lib/components/Stars.svelte';
 	import StarInput from '#lib/components/StarInput.svelte';
@@ -130,17 +131,6 @@
 		event.preventDefault();
 		tab = tabs[next].id;
 		document.getElementById(`tab-${tab}`)?.focus();
-	}
-
-	/** Human label for a Read's outcome. */
-	function outcomeLabel(outcome: 'open' | 'finished' | 'abandoned'): string {
-		return outcome === 'open' ? 'Reading' : outcome === 'finished' ? 'Finished' : 'Abandoned';
-	}
-
-	/** Short label for a Read, used in the "link to Read" picker and annotations. */
-	function readLabel(r: PageData['reads'][number]): string {
-		const dates = [r.startDate, r.endDate].filter(Boolean).map(formatDay).join(' – ');
-		return dates ? `${outcomeLabel(r.outcome)} · ${dates}` : outcomeLabel(r.outcome);
 	}
 
 	/** The label of the Read an annotation is linked to, or '' when unlinked. */
@@ -394,11 +384,7 @@
 								class="stack panel wide"
 								use:enhance={submit({ done: () => (addingNote = false) })}
 							>
-								<label class="field">
-									<span>Note (Markdown)</span>
-									<!-- svelte-ignore a11y_autofocus -->
-									<textarea name="body" rows="6" required autofocus></textarea>
-								</label>
+								<MarkdownEditor autofocus />
 								{@render readLinkField(data.defaultReadId)}
 								<div class="form-actions">
 									<button type="submit" class="primary small">Add Note</button>
@@ -431,10 +417,7 @@
 											use:enhance={submit({ done: () => (editing = null) })}
 										>
 											<input type="hidden" name="noteId" value={n.id} />
-											<label class="field">
-												<span>Note (Markdown)</span>
-												<textarea name="body" rows="6" required>{n.body}</textarea>
-											</label>
+											<MarkdownEditor value={n.body} />
 											{@render readLinkField(n.readId)}
 											<div class="form-actions">
 												<button type="submit" class="primary small">Save</button>

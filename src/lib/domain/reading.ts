@@ -78,6 +78,28 @@ export function openRead(reads: readonly Read[]): Read | null {
 }
 
 /**
+ * A Book's Reads, newest first: by date (start, or end for a logged past Read
+ * that has no start), ties by id. Undated Reads come last.
+ */
+export function readsNewestFirst<R extends Read>(reads: readonly R[]): R[] {
+	const anchor = (r: Read) => r.startDate ?? r.endDate ?? '';
+	return [...reads].sort((a, b) => {
+		const aa = anchor(a);
+		const bb = anchor(b);
+		if (aa !== bb) return aa < bb ? 1 : -1;
+		return b.id - a.id;
+	});
+}
+
+/**
+ * The Read a new Quote or Note links to by default: the open Read when there is
+ * one, otherwise the newest Read, otherwise none.
+ */
+export function defaultAnnotationRead(reads: readonly Read[]): Read | null {
+	return openRead(reads) ?? readsNewestFirst(reads)[0] ?? null;
+}
+
+/**
  * Reading Status by ADR-0005 precedence: any open Read wins (Reading), else any
  * Finished Read (Finished), else any Abandoned Read (Abandoned), else Want to
  * read. Having finished it once outranks a later abandoned reread.

@@ -76,3 +76,18 @@ export function deleteReadMessage(opts: {
 	}
 	return parts.join(' ');
 }
+
+/** Human label for a Read's outcome. */
+export function outcomeLabel(outcome: 'open' | 'finished' | 'abandoned'): string {
+	return outcome === 'open' ? 'Reading' : outcome === 'finished' ? 'Finished' : 'Abandoned';
+}
+
+/** Short label for a Read, e.g. "Finished · 3 Jan 2026 – 9 Feb 2026", for Read pickers. */
+export function readLabel(r: {
+	outcome: 'open' | 'finished' | 'abandoned';
+	startDate: string | null;
+	endDate: string | null;
+}): string {
+	const dates = [r.startDate, r.endDate].filter(Boolean).map(formatDay).join(' – ');
+	return dates ? `${outcomeLabel(r.outcome)} · ${dates}` : outcomeLabel(r.outcome);
+}
