@@ -1,6 +1,6 @@
 <!--
 	App shell: the navigation between the four Reading Status lists plus Add book.
-	Reading is the home screen (ADR / spec); the current list is highlighted.
+	The brand links to the start page (/); the current list is highlighted.
 	On narrow screens the tabs drop to their own horizontally scrolling row.
 -->
 <script lang="ts">
@@ -14,7 +14,7 @@
 	const onLogin = $derived(page.url.pathname === '/login');
 
 	const tabs = [
-		{ href: '/', label: 'Reading' },
+		{ href: '/reading', label: 'Reading' },
 		{ href: '/want', label: 'Want to read' },
 		{ href: '/finished', label: 'Finished' },
 		{ href: '/abandoned', label: 'Abandoned' },
@@ -22,7 +22,7 @@
 	];
 
 	function isActive(href: string): boolean {
-		return href === '/' ? page.url.pathname === '/' : page.url.pathname.startsWith(href);
+		return page.url.pathname.startsWith(href);
 	}
 </script>
 

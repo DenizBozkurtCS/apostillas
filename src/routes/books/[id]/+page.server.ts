@@ -345,6 +345,6 @@ export const actions: Actions = {
 		const id = parseId(params.id);
 		requireBook(id);
 		deleteBook(db, coversDir(), id);
-		redirect(303, '/');
+		redirect(303, '/reading');
 	}
 };

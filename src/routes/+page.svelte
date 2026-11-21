@@ -1,22 +1,20 @@
-<script lang="ts">
-	import BookCard from '#lib/components/BookCard.svelte';
-	import Shelf from '#lib/components/Shelf.svelte';
-	import type { PageData } from './$types';
-
-	let { data }: { data: PageData } = $props();
-</script>
-
+<!-- The start page: one line, nothing else. The lists are in the header. -->
 <svelte:head>
-	<title>Reading · apostillas</title>
+	<title>apostillas</title>
 </svelte:head>
 
-<Shelf title="Reading" count={data.reading.length} empty="You're not reading anything right now.">
-	{#each data.reading as item (item.bookId)}
-		<BookCard
-			bookId={item.bookId}
-			title={item.title}
-			authors={item.authors}
-			coverPath={item.coverPath}
-		/>
-	{/each}
-</Shelf>
+<p class="tagline">because goodreads was hideous.</p>
+
+<style>
+	.tagline {
+		min-height: 60vh;
+		display: grid;
+		place-items: center;
+		margin: 0;
+		font-size: clamp(1.5rem, 4vw, 2.5rem);
+		font-weight: 600;
+		letter-spacing: -0.02em;
+		text-align: center;
+		color: var(--text-muted);
+	}
+</style>
