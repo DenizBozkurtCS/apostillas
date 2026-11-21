@@ -1,7 +1,7 @@
 # Optional single-password gate for deployment
 
 Status: ready-for-agent
-Blocked by: 01
+Blocked by: 01, 08
 
 Per ADR-0001.
 
