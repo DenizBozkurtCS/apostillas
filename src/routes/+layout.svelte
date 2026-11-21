@@ -5,7 +5,8 @@
 	right, a book search bar submits to /add, which shows the Open Library results.
 	The brand links to the start page (/). The dropdown is a disclosure: a button
 	with aria-expanded and a list of links. It closes on Escape, on a click
-	outside, and after navigating.
+	outside, and after navigating. On phones the whole nav folds into one
+	dropdown (same disclosure pattern) so the bar fits on one line.
 -->
 <script lang="ts">
 	import '../app.css';
@@ -36,18 +37,33 @@
 
 	let open = $state(false);
 	let library: HTMLElement | undefined = $state();
+	let phoneOpen = $state(false);
+	let phoneMenu: HTMLElement | undefined = $state();
+
+	const others = [
+		{ href: '/bookcase', label: 'Bookcase' },
+		{ href: '/notes', label: 'Notes & Quotes' }
+	] as const;
+	const currentOther = $derived(others.find((o) => page.url.pathname.startsWith(o.href)));
 
 	afterNavigate(() => {
 		open = false;
+		phoneOpen = false;
 	});
 
 	function onWindowClick(event: MouseEvent) {
 		if (open && library && !library.contains(event.target as Node)) open = false;
+		if (phoneOpen && phoneMenu && !phoneMenu.contains(event.target as Node)) phoneOpen = false;
 	}
 	function onKeydown(event: KeyboardEvent) {
-		if (open && event.key === 'Escape') {
+		if (event.key !== 'Escape') return;
+		if (open) {
 			open = false;
 			library?.querySelector('button')?.focus();
+		}
+		if (phoneOpen) {
+			phoneOpen = false;
+			phoneMenu?.querySelector('button')?.focus();
 		}
 	}
 </script>
@@ -62,7 +78,7 @@
 	<header>
 		<div class="bar">
 			<a class="brand" href="/">apostillas</a>
-			<nav aria-label="Main">
+			<nav class="desktop-nav" aria-label="Main">
 				<div class="library" bind:this={library}>
 					<button
 						type="button"
@@ -111,6 +127,65 @@
 					aria-current={page.url.pathname.startsWith('/notes') ? 'page' : undefined}>Notes &amp; Quotes</a
 				>
 			</nav>
+			<!-- Phones: everything in the nav, in one dropdown. -->
+			<div class="phone-nav" bind:this={phoneMenu}>
+				<button
+					type="button"
+					class="nav-item trigger"
+					class:active={currentList != null || currentOther != null}
+					aria-expanded={phoneOpen}
+					aria-controls="phone-menu"
+					onclick={() => (phoneOpen = !phoneOpen)}
+				>
+					<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"
+						><path
+							d="M4 7h16M4 12h16M4 17h16"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+						/></svg
+					>
+					{currentList?.label ?? currentOther?.label ?? 'Menu'}
+					<svg class="chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"
+						><path
+							d="M3 4.5l3 3 3-3"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.6"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						/></svg
+					>
+				</button>
+				{#if phoneOpen}
+					<nav id="phone-menu" class="menu" aria-label="Main">
+						<p class="menu-label">Library</p>
+						<ul>
+							{#each lists as list (list.href)}
+								<li>
+									<a
+										href={list.href}
+										aria-current={currentList?.href === list.href ? 'page' : undefined}
+									>
+										<StatusIcon status={list.icon} size={16} />
+										{list.label}
+									</a>
+								</li>
+							{/each}
+						</ul>
+						<hr />
+						<ul>
+							{#each others as o (o.href)}
+								<li>
+									<a href={o.href} aria-current={currentOther?.href === o.href ? 'page' : undefined}
+										>{o.label}</a
+									>
+								</li>
+							{/each}
+						</ul>
+					</nav>
+				{/if}
+			</div>
 			<!-- Book search (Open Library): results open on the Add page. -->
 			<form method="GET" action="/add" class="book-search" role="search">
 				<svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"
@@ -227,6 +302,30 @@
 		background: var(--surface-raised);
 		box-shadow: var(--shadow);
 	}
+	.menu ul {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.menu hr {
+		margin: 0.3rem 0.35rem;
+		border: none;
+		border-top: 1px solid var(--border);
+	}
+	.menu-label {
+		margin: 0.35rem 0.65rem 0.2rem;
+		font-size: 0.75rem;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--text-faint);
+	}
+	.phone-nav {
+		display: none;
+		position: relative;
+		/* Above the book search, which comes later in the bar. */
+		z-index: 2;
+	}
 	.menu a {
 		display: flex;
 		align-items: center;
@@ -305,6 +404,16 @@
 		}
 		.nav-item {
 			padding: 0.35rem 0.5rem;
+		}
+		.desktop-nav {
+			display: none;
+		}
+		.phone-nav {
+			display: block;
+		}
+		.phone-nav .menu {
+			display: block;
+			min-width: 14rem;
 		}
 	}
 
