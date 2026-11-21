@@ -1,6 +1,6 @@
 # "Add to Shelf…" on the Book page
 
-Status: ready-for-human
+Status: closed
 Blocked by: 01
 
 ## Acceptance criteria
@@ -10,3 +10,5 @@ Blocked by: 01
 - The Book page itself does not list the Book's Shelves.
 
 ## Comments
+
+**RALPH (2026-11-21):** Done: Add to Shelf dialog
