@@ -12,6 +12,10 @@ _Avoid_: Title, work, item
 A specific publication of a Book (a particular ISBN, cover, and page count). Optional detail on a Book, never its identity.
 _Avoid_: Copy, version, printing
 
+**Tag**:
+A short, case-insensitive label the reader puts on a Book to group it with others (e.g. #scifi, #from-ana). A Book can carry many Tags, and a Tag exists only while at least one Book carries it. Tags are independent of Reading Status and belong to Books only, never to Quotes or Notes.
+_Avoid_: Shelf, label, category, genre
+
 ## Reading
 
 **Reading Status**:
