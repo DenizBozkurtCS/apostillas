@@ -1,6 +1,6 @@
 # Shelves and the Bookcase page
 
-Status: ready-for-human
+Status: closed
 Blocked by: —
 
 Create Shelves and see them all on the Bookcase (see **Shelf** and **Bookcase** in `GLOSSARY.md`).
@@ -17,3 +17,5 @@ Create Shelves and see them all on the Bookcase (see **Shelf** and **Bookcase** 
 - Back up `data/` before running the migration, and trial it on a copy first. Give the migration a journal `when` after the previous one.
 
 ## Comments
+
+**RALPH (2026-11-21):** Done: Shelves and the Bookcase page
