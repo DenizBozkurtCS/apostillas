@@ -15,11 +15,13 @@ import {
 } from '#lib/server/book';
 import {
 	abandon,
+	canAnnotate,
 	deleteRead,
 	editRead,
 	finish,
 	isReread,
 	logPastFinished,
+	openRead,
 	readingStatus,
 	revertToWantToRead,
 	start,
@@ -27,6 +29,15 @@ import {
 	type EditReadFields,
 	type OpResult
 } from '#lib/domain/reading';
+import {
+	addNote,
+	addQuote,
+	deleteNote,
+	deleteQuote,
+	editNote,
+	editQuote,
+	loadAnnotations
+} from '#lib/server/annotations';
 import { deleteReadMessage } from '#lib/format';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -98,7 +109,22 @@ export const load: PageServerLoad = async ({ params, url }) => {
 			? await fetchWorkEditionCovers(book.workId)
 			: null;
 
-	return { book, status, reads: readItems, quoteCount, noteCount, editionCovers };
+	const annotations = loadAnnotations(db, id);
+
+	return {
+		book,
+		status,
+		reads: readItems,
+		quoteCount,
+		noteCount,
+		editionCovers,
+		quotes: annotations.quotes,
+		notes: annotations.notes,
+		// Quotes and Notes can only be added once the Book is no longer Want to read.
+		canAnnotate: canAnnotate(status),
+		// New Quotes and Notes default to the open Read, when there is one.
+		defaultReadId: openRead(reads)?.id ?? null
+	};
 };
 
 /** Apply an operation's mutation, or turn its refusal into a 400. */
@@ -243,6 +269,82 @@ export const actions: Actions = {
 		if (!(await setBookCoverFromUrl(db, coversDir(), id, coverUrl))) {
 			return fail(400, { coverError: 'That cover could not be used.' });
 		}
+	},
+
+	addQuote: async ({ params, request }) => {
+		const id = parseId(params.id);
+		const { reads } = requireBook(id);
+		if (!canAnnotate(readingStatus(reads))) {
+			return fail(400, { quoteError: 'Start this Book before adding Quotes.' });
+		}
+		const form = await request.formData();
+		const text = optional(form.get('text'));
+		if (text === null) return fail(400, { quoteError: 'A Quote needs some text.' });
+		addQuote(db, id, {
+			text,
+			location: optional(form.get('location')),
+			readId: optionalNumber(form.get('readId'))
+		});
+	},
+
+	editQuote: async ({ params, request }) => {
+		const id = parseId(params.id);
+		requireBook(id);
+		const form = await request.formData();
+		const quoteId = optionalNumber(form.get('quoteId'));
+		if (quoteId === null) return fail(400, { quoteError: 'That Quote no longer exists.' });
+		const text = optional(form.get('text'));
+		if (text === null) return fail(400, { quoteError: 'A Quote needs some text.' });
+		if (
+			!editQuote(db, id, quoteId, {
+				text,
+				location: optional(form.get('location')),
+				readId: optionalNumber(form.get('readId'))
+			})
+		) {
+			return fail(400, { quoteError: 'That Quote no longer exists.' });
+		}
+	},
+
+	deleteQuote: async ({ params, request }) => {
+		const id = parseId(params.id);
+		requireBook(id);
+		const form = await request.formData();
+		const quoteId = optionalNumber(form.get('quoteId'));
+		if (quoteId !== null) deleteQuote(db, id, quoteId);
+	},
+
+	addNote: async ({ params, request }) => {
+		const id = parseId(params.id);
+		const { reads } = requireBook(id);
+		if (!canAnnotate(readingStatus(reads))) {
+			return fail(400, { noteError: 'Start this Book before adding Notes.' });
+		}
+		const form = await request.formData();
+		const body = optional(form.get('body'));
+		if (body === null) return fail(400, { noteError: 'A Note needs some text.' });
+		addNote(db, id, { body, readId: optionalNumber(form.get('readId')) });
+	},
+
+	editNote: async ({ params, request }) => {
+		const id = parseId(params.id);
+		requireBook(id);
+		const form = await request.formData();
+		const noteId = optionalNumber(form.get('noteId'));
+		if (noteId === null) return fail(400, { noteError: 'That Note no longer exists.' });
+		const body = optional(form.get('body'));
+		if (body === null) return fail(400, { noteError: 'A Note needs some text.' });
+		if (!editNote(db, id, noteId, { body, readId: optionalNumber(form.get('readId')) })) {
+			return fail(400, { noteError: 'That Note no longer exists.' });
+		}
+	},
+
+	deleteNote: async ({ params, request }) => {
+		const id = parseId(params.id);
+		requireBook(id);
+		const form = await request.formData();
+		const noteId = optionalNumber(form.get('noteId'));
+		if (noteId !== null) deleteNote(db, id, noteId);
 	},
 
 	deleteBook: ({ params }) => {

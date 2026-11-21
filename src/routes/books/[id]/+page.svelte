@@ -12,6 +12,19 @@
 		return outcome === 'open' ? 'Reading' : outcome === 'finished' ? 'Finished' : 'Abandoned';
 	}
 
+	/** Short label for a Read, used in the "link to Read" picker and annotations. */
+	function readLabel(r: PageData['reads'][number]): string {
+		const dates = [r.startDate, r.endDate].filter(Boolean).map(formatDay).join(' – ');
+		return dates ? `${outcomeLabel(r.outcome)} · ${dates}` : outcomeLabel(r.outcome);
+	}
+
+	/** The label of the Read an annotation is linked to, or '' when unlinked. */
+	function readLabelFor(readId: number | null): string {
+		if (readId == null) return '';
+		const r = data.reads.find((x) => x.id === readId);
+		return r ? readLabel(r) : '';
+	}
+
 	/** Cancel a destructive form submit unless the reader confirms. */
 	function confirmSubmit(message: string) {
 		return (event: SubmitEvent) => {
@@ -194,6 +207,152 @@
 								onsubmit={confirmSubmit(r.deleteMessage)}
 							>
 								<input type="hidden" name="readId" value={r.id} />
+								<button type="submit" class="link-button">Delete</button>
+							</form>
+						</div>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</section>
+
+	{#snippet readLinkField(selected: number | null)}
+		{#if data.reads.length > 0}
+			<label>
+				<span>Linked Read (optional)</span>
+				<select name="readId">
+					<option value="" selected={selected == null}>Not linked to a Read</option>
+					{#each data.reads as r (r.id)}
+						<option value={r.id} selected={selected === r.id}>{readLabel(r)}</option>
+					{/each}
+				</select>
+			</label>
+		{/if}
+	{/snippet}
+
+	<!-- Quotes -->
+	<section class="annotations">
+		<h2>Quotes</h2>
+		{#if form?.quoteError}
+			<p class="error" role="alert">{form.quoteError}</p>
+		{/if}
+
+		{#if data.canAnnotate}
+			<details class="disclosure">
+				<summary>Add a Quote</summary>
+				<form method="POST" action="?/addQuote" class="stack">
+					<label>
+						<span>Quote</span>
+						<textarea name="text" rows="3" required></textarea>
+					</label>
+					<label>
+						<span>Page or location (optional)</span>
+						<input name="location" type="text" />
+					</label>
+					{@render readLinkField(data.defaultReadId)}
+					<button type="submit">Add Quote</button>
+				</form>
+			</details>
+		{:else}
+			<p class="muted">Start this Book to add Quotes. Existing Quotes stay here.</p>
+		{/if}
+
+		{#if data.quotes.length === 0}
+			<p class="muted">No Quotes yet.</p>
+		{:else}
+			<ul class="annotation-list">
+				{#each data.quotes as q (q.id)}
+					<li class="annotation">
+						<blockquote class="quote-text">{q.text}</blockquote>
+						<div class="annotation-meta">
+							{#if q.location}<span>{q.location}</span>{/if}
+							{#if readLabelFor(q.readId)}<span class="link">↳ {readLabelFor(q.readId)}</span>{/if}
+						</div>
+						<div class="read-tools">
+							<details class="disclosure">
+								<summary>Edit</summary>
+								<form method="POST" action="?/editQuote" class="stack">
+									<input type="hidden" name="quoteId" value={q.id} />
+									<label>
+										<span>Quote</span>
+										<textarea name="text" rows="3" required>{q.text}</textarea>
+									</label>
+									<label>
+										<span>Page or location (optional)</span>
+										<input name="location" type="text" value={q.location ?? ''} />
+									</label>
+									{@render readLinkField(q.readId)}
+									<button type="submit">Save</button>
+								</form>
+							</details>
+							<form
+								method="POST"
+								action="?/deleteQuote"
+								onsubmit={confirmSubmit('Delete this Quote?')}
+							>
+								<input type="hidden" name="quoteId" value={q.id} />
+								<button type="submit" class="link-button">Delete</button>
+							</form>
+						</div>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</section>
+
+	<!-- Notes -->
+	<section class="annotations">
+		<h2>Notes</h2>
+		{#if form?.noteError}
+			<p class="error" role="alert">{form.noteError}</p>
+		{/if}
+
+		{#if data.canAnnotate}
+			<details class="disclosure">
+				<summary>Add a Note</summary>
+				<form method="POST" action="?/addNote" class="stack">
+					<label>
+						<span>Note (Markdown)</span>
+						<textarea name="body" rows="5" required></textarea>
+					</label>
+					{@render readLinkField(data.defaultReadId)}
+					<button type="submit">Add Note</button>
+				</form>
+			</details>
+		{:else}
+			<p class="muted">Start this Book to add Notes. Existing Notes stay here.</p>
+		{/if}
+
+		{#if data.notes.length === 0}
+			<p class="muted">No Notes yet.</p>
+		{:else}
+			<ul class="annotation-list">
+				{#each data.notes as n (n.id)}
+					<li class="annotation">
+						<!-- Sanitised server-side in src/lib/markdown.ts (HTML-escaped by construction). -->
+						<div class="note-body">{@html n.html}</div>
+						<div class="annotation-meta">
+							{#if readLabelFor(n.readId)}<span class="link">↳ {readLabelFor(n.readId)}</span>{/if}
+						</div>
+						<div class="read-tools">
+							<details class="disclosure">
+								<summary>Edit</summary>
+								<form method="POST" action="?/editNote" class="stack">
+									<input type="hidden" name="noteId" value={n.id} />
+									<label>
+										<span>Note (Markdown)</span>
+										<textarea name="body" rows="5" required>{n.body}</textarea>
+									</label>
+									{@render readLinkField(n.readId)}
+									<button type="submit">Save</button>
+								</form>
+							</details>
+							<form
+								method="POST"
+								action="?/deleteNote"
+								onsubmit={confirmSubmit('Delete this Note?')}
+							>
+								<input type="hidden" name="noteId" value={n.id} />
 								<button type="submit" class="link-button">Delete</button>
 							</form>
 						</div>
@@ -497,6 +656,56 @@
 	}
 	.editions {
 		margin-top: 1rem;
+	}
+	.annotations h2 {
+		font-size: 1.1rem;
+		margin: 0 0 0.5rem;
+	}
+	.annotation-list {
+		list-style: none;
+		padding: 0;
+		margin: 0.75rem 0 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+	.annotation {
+		border: 1px solid #eee;
+		border-radius: 6px;
+		padding: 0.6rem 0.75rem;
+	}
+	.quote-text {
+		margin: 0;
+		padding-left: 0.75rem;
+		border-left: 3px solid #ddd;
+		white-space: pre-wrap;
+		font-style: italic;
+	}
+	.note-body {
+		line-height: 1.5;
+	}
+	.note-body :global(p) {
+		margin: 0 0 0.5rem;
+	}
+	.note-body :global(:last-child) {
+		margin-bottom: 0;
+	}
+	.note-body :global(pre) {
+		background: #f5f5f5;
+		padding: 0.5rem;
+		border-radius: 4px;
+		overflow-x: auto;
+	}
+	.annotation-meta {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		margin-top: 0.4rem;
+		font-size: 0.85rem;
+		color: #777;
+	}
+	.annotation-meta .link {
+		color: #1a56db;
 	}
 	.muted {
 		color: #777;
