@@ -16,6 +16,13 @@ _Avoid_: Copy, version, printing
 A short, case-insensitive label the reader puts on a Book to group it with others (e.g. #scifi, #from-ana). A Book can carry many Tags, and a Tag exists only while at least one Book carries it. Tags are independent of Reading Status and belong to Books only, never to Quotes or Notes.
 _Avoid_: Shelf, label, category, genre
 
+**Shelf**:
+A named collection of Books the reader curates and arranges by hand (e.g. "Summer 2027", "Gifts for Dad"), with an optional description. A Book can sit on many Shelves, whatever its Reading Status, and removing it from a Shelf or deleting the Shelf never deletes the Book. Unlike a Tag, a Shelf exists on its own, even when empty.
+_Avoid_: List, collection, playlist
+
+**Bookcase**:
+All of the reader's Shelves together, in the order the reader arranges them.
+
 ## Reading
 
 **Reading Status**:
