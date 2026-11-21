@@ -1,6 +1,7 @@
 <!--
 	App shell. The four Reading Status lists live under a "Library" dropdown
-	(Reading, Bookstack, Books, Abandoned) beside Notes & Quotes. On the
+	(Reading, Bookstack, Books, Abandoned), then the Bookcase (the reader's
+	Shelves) and Notes & Quotes. On the
 	right, a book search bar submits to /add, which shows the Open Library results.
 	The brand links to the start page (/). The dropdown is a disclosure: a button
 	with aria-expanded and a list of links. It closes on Escape, on a click
@@ -99,6 +100,11 @@
 						</ul>
 					{/if}
 				</div>
+				<a
+					class="nav-item"
+					href="/bookcase"
+					aria-current={page.url.pathname.startsWith('/bookcase') ? 'page' : undefined}>Bookcase</a
+				>
 				<a
 					class="nav-item"
 					href="/notes"

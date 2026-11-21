@@ -19,6 +19,9 @@
 	.stars {
 		position: relative;
 		display: inline-block;
+		/* Never stretch (e.g. in a flex column): the fill is a share of this width. */
+		width: max-content;
+		align-self: flex-start;
 		line-height: 1;
 		letter-spacing: 1px;
 		white-space: nowrap;

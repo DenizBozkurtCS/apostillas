@@ -101,3 +101,42 @@ export const bookTags = sqliteTable(
 	},
 	(table) => [primaryKey({ columns: [table.bookId, table.name] })]
 );
+
+/**
+ * A Shelf: a named collection of Books the reader curates and arranges (see
+ * GLOSSARY.md). `slug` is derived from the name and is its web address, so it
+ * is unique (src/lib/domain/shelves.ts). `position` orders the Bookcase,
+ * smallest first; a new Shelf takes one less than the current smallest.
+ */
+export const shelves = sqliteTable(
+	'shelves',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		name: text('name').notNull(),
+		slug: text('slug').notNull(),
+		description: text('description'),
+		position: integer('position').notNull(),
+		createdAt: text('created_at')
+			.notNull()
+			.default(sql`(CURRENT_TIMESTAMP)`)
+	},
+	(table) => [uniqueIndex('shelves_slug_unique').on(table.slug)]
+);
+
+/**
+ * A Book on a Shelf, at `position` (smallest first). Deleting the Shelf or the
+ * Book removes the row, never the other side.
+ */
+export const shelfBooks = sqliteTable(
+	'shelf_books',
+	{
+		shelfId: integer('shelf_id')
+			.notNull()
+			.references(() => shelves.id, { onDelete: 'cascade' }),
+		bookId: integer('book_id')
+			.notNull()
+			.references(() => books.id, { onDelete: 'cascade' }),
+		position: integer('position').notNull()
+	},
+	(table) => [primaryKey({ columns: [table.shelfId, table.bookId] })]
+);
