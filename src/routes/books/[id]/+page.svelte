@@ -8,7 +8,7 @@
 -->
 <script lang="ts">
 	import { enhance, type SubmitFunction } from '$app/forms';
-	import { formatDay, formatRating, statusLabel } from '#lib/format';
+	import { formatDay, statusLabel } from '#lib/format';
 	import Dialog from '#lib/components/Dialog.svelte';
 	import Stars from '#lib/components/Stars.svelte';
 	import StarInput from '#lib/components/StarInput.svelte';
@@ -243,7 +243,6 @@
 			{#if data.rating != null}
 				<p class="rating">
 					<Stars rating={data.rating} />
-					<span class="rating-value" aria-hidden="true">{formatRating(data.rating)}</span>
 				</p>
 			{/if}
 			<p class="facts">
@@ -820,17 +819,9 @@
 		color: var(--text-muted);
 	}
 	.rating {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
 		margin: 0;
 		font-size: 1.35rem;
 		line-height: 1;
-	}
-	.rating-value {
-		font-size: 0.9rem;
-		font-weight: 600;
-		color: var(--text-muted);
 	}
 	.facts {
 		display: flex;
