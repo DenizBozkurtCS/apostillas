@@ -1,7 +1,8 @@
 <!--
 	My Reading (apostillas-v4/03): every Impression, newest first, grouped by
 	year. Every row is the same height: the Book's cover, its title and author
-	(linking to the Book) and the review cut to two lines; on the right, the
+	(linking to the Book) on one line and the review cut to three lines, with
+	"more" to open a longer one in place; on the right, the
 	date, stars and ↻ / ⊘ icons, with Edit (in place) and Delete.
 	"+ Leave an Impression" opens a pop-up that first asks which Book (a search
 	over the library), then shows the Impression form with that Book's cover
@@ -21,6 +22,36 @@
 
 	let adding = $state(false);
 	let editing = $state<number | null>(null);
+
+	/** Impressions whose review is opened in full ("more"). */
+	let expanded = $state<Set<number>>(new Set());
+	/** Impressions whose review is longer than the three lines shown. */
+	let cut = $state<Set<number>>(new Set());
+
+	function toggleExpanded(id: number) {
+		const next = new Set(expanded);
+		if (next.has(id)) next.delete(id);
+		else next.add(id);
+		expanded = next;
+	}
+
+	/** Notice whether a clamped review is cut off, now and when the width changes. */
+	function watchCut(node: HTMLElement, id: number) {
+		const check = () => {
+			if (expanded.has(id)) return;
+			const isCut = node.scrollHeight > node.clientHeight + 1;
+			if (isCut !== cut.has(id)) {
+				const next = new Set(cut);
+				if (isCut) next.add(id);
+				else next.delete(id);
+				cut = next;
+			}
+		};
+		const observer = new ResizeObserver(check);
+		observer.observe(node);
+		check();
+		return { destroy: () => observer.disconnect() };
+	}
 
 	/** The Book the new Impression is about; null while still choosing. */
 	let picked = $state<PickableBook | null>(null);
@@ -92,7 +123,7 @@
 				<h2 id={`year-${group.year}`} class="year">{group.year}</h2>
 				<ul class="items">
 					{#each group.items as imp (imp.id)}
-						<li class="item" class:editing={editing === imp.id}>
+						<li class="item" class:open={editing === imp.id || expanded.has(imp.id)}>
 							<a class="cover-link" href={`/books/${imp.book.id}`} tabindex="-1" aria-hidden="true">
 								{#if imp.book.coverPath}
 									<img src={`/${imp.book.coverPath}`} alt="" width="56" height="84" loading="lazy" />
@@ -103,7 +134,7 @@
 							<div class="body">
 								<a class="book" href={`/books/${imp.book.id}`}>
 									<span class="title">{imp.book.title}</span>
-									<span class="byline">{byline(imp.book.authors)}</span>
+									<span class="byline">· {byline(imp.book.authors)}</span>
 								</a>
 								{#if editing === imp.id}
 									<form
@@ -126,7 +157,19 @@
 										</div>
 									</form>
 								{:else if imp.review}
-									<p class="review">{imp.review}</p>
+									{@const open = expanded.has(imp.id)}
+									<div class="review-wrap">
+										<p class="review" class:open use:watchCut={imp.id}>{imp.review}</p>
+										{#if open || cut.has(imp.id)}
+											<button
+												type="button"
+												class="more"
+												class:open
+												aria-expanded={open}
+												onclick={() => toggleExpanded(imp.id)}>{open ? 'less' : 'more'}</button
+											>
+										{/if}
+									</div>
 								{/if}
 							</div>
 							<div class="side">
@@ -242,7 +285,7 @@
 	}
 	/* Every row the same height: the cover's. The review is cut to fit. */
 	.item {
-		--cover-w: 3.5rem;
+		--cover-w: 3.75rem;
 		display: grid;
 		grid-template-columns: var(--cover-w) minmax(0, 1fr) auto;
 		gap: 1rem;
@@ -251,8 +294,9 @@
 		border-bottom: 1px solid var(--border);
 		box-sizing: border-box;
 	}
-	.item.editing {
+	.item.open {
 		height: auto;
+		min-height: calc(var(--cover-w) * 1.5 + 2rem);
 	}
 	.item:last-child {
 		border-bottom: none;
@@ -275,7 +319,8 @@
 	}
 	.book {
 		display: flex;
-		flex-direction: column;
+		align-items: baseline;
+		gap: 0.35rem;
 		min-width: 0;
 		color: inherit;
 		text-decoration: none;
@@ -290,23 +335,58 @@
 		white-space: nowrap;
 	}
 	.title {
+		flex-shrink: 0;
+		max-width: 70%;
 		font-weight: 650;
 	}
 	.byline {
+		min-width: 0;
 		font-size: 0.85rem;
 		color: var(--text-muted);
 	}
+	.review-wrap {
+		position: relative;
+		margin-top: 0.35rem;
+	}
 	.review {
-		margin: 0.35rem 0 0;
+		margin: 0;
 		font-size: 0.85rem;
 		line-height: 1.45;
 		color: var(--text-muted);
+		white-space: pre-line;
 		overflow-wrap: anywhere;
 		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		line-clamp: 2;
+		-webkit-line-clamp: 3;
+		line-clamp: 3;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
+	}
+	.review.open {
+		display: block;
+		overflow: visible;
+	}
+	/* "more" sits over the end of the last line, fading the text under it. */
+	.more {
+		position: absolute;
+		right: 0;
+		bottom: 0;
+		padding: 0 0 0 2.5rem;
+		border: none;
+		border-radius: 0;
+		background: linear-gradient(to right, transparent, var(--bg) 2rem);
+		color: var(--accent);
+		font-size: 0.85rem;
+		font-weight: 600;
+		line-height: 1.45;
+		cursor: pointer;
+	}
+	.more:hover {
+		text-decoration: underline;
+	}
+	.more.open {
+		position: static;
+		padding: 0;
+		background: none;
 	}
 	.side {
 		display: flex;
