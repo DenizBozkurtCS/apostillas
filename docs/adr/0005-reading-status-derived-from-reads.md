@@ -1,5 +1,7 @@
 # Reading Status is derived from Reads, never stored
 
+**Superseded by [ADR-0006](0006-reading-status-set-directly.md).**
+
 A Book's Reading Status is computed from its Reads rather than stored, so the two can never disagree. Precedence: any open Read → Reading; else any Finished Read → Finished; else any Abandoned Read → Abandoned; no Reads → Want to read. "Having finished it once" outranks a later abandoned reread, which is why we rejected "latest Read wins".
 
 ## Consequences

@@ -1,6 +1,6 @@
 # apostillas
 
-A personal book tracker for one reader: the books they want to read, are reading, have finished or abandoned, and the quotes and notes they keep about them.
+A personal book tracker for one reader: the books they want to read, are reading, or have read, their impressions of them, and the quotes and notes they keep about them.
 
 ## Books
 
@@ -26,43 +26,46 @@ All of the reader's Shelves together, in the order the reader arranges them.
 ## Reading
 
 **Reading Status**:
-Where a Book stands for the reader: **Want to read**, **Reading**, **Finished**, or **Abandoned**. Always derived from the Book's Reads, never set directly.
+Where a Book stands for the reader: **Want to read**, **Reading**, and **Finished**. The three are independent: the reader switches each on or off directly, so a Book can have any of them, all of them, or none. They never come from Impressions, and setting one records no date.
 _Avoid_: State, shelf, list
 
-On screen, the four lists sit under a **Library** menu, and two have their own names there: the Want to read list is **Bookstack**, and the Finished list is **Books** (a single Finished Book is still badged "Finished"). These are UI labels only; code and docs keep the Reading Status names above.
+On screen, the three lists sit under a **Library** menu, and two have their own names there: the Want to read list is **Bookstack**, and the Finished list is **Books** (the Finished switch itself reads "Read it"). These are UI labels only; code and docs keep the Reading Status names above.
 
 **Want to read**:
-The Reading Status of a Book the reader intends to read but has not started.
+The Reading Status of a Book the reader intends to read.
 _Avoid_: To-read, wishlist, backlog, TBR
 
 **Reading**:
-The Reading Status of a Book the reader is currently partway through.
+The Reading Status of a Book the reader is currently reading.
 _Avoid_: In progress, current, active
 
 **Finished**:
-The Reading Status of a Book the reader has completed at least one Read of.
-_Avoid_: Read (as an adjective), done, completed
+The Reading Status of a Book the reader has read.
+_Avoid_: Done, completed
 
-**Abandoned**:
-The Reading Status of a Book the reader started and deliberately stopped without finishing.
-_Avoid_: DNF, dropped, stopped, paused
+**Rating**:
+How much the reader liked a Book, ½ to 5 stars. A Book has at most one: whichever rating the reader set most recently, on the Book itself or on one of its Impressions. A Book can be rated without any Impression.
 
-**Read**:
-One pass through a Book, from starting it to finishing or abandoning it. A Book can have many Reads.
-_Avoid_: Reading (as a noun for this), session
+**Impression**:
+A dated record of reading a Book: one date (no start date), with an optional Rating and an optional short review. It can be marked as a **Reread** or as **Didn't finish**. A Book can have many Impressions, and they never change its Reading Status.
+_Avoid_: Read, log, remark, review (as the whole record)
 
 **Reread**:
-A Read of a Book the reader had already finished before it, whether or not that earlier Read is recorded.
+A marker the reader puts on an Impression of a Book they had read before. Never inferred.
 _Avoid_: Revisit, second read
+
+**Didn't finish**:
+A marker the reader puts on an Impression when they stopped partway through.
+_Avoid_: DNF, abandoned, dropped
 
 ## Annotations
 
-Quotes and Notes belong to a Book, not to any of its Reads. They can be added to any Book except one that is Want to read.
+Quotes and Notes belong to a Book, not to any of its Impressions, and can be added to any Book.
 
 **Quote**:
 A passage copied verbatim from a Book, optionally with the page or location it came from.
 _Avoid_: Highlight, excerpt, clipping
 
 **Note**:
-The reader's own writing about a Book: a thought, review, or summary.
+The reader's own detailed writing about a Book: takeaways, thoughts, and excerpts worth keeping. A short verdict belongs in an Impression instead.
 _Avoid_: Comment, review, annotation (as a specific type)
