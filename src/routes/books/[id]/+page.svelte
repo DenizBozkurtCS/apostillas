@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatDay } from '#lib/format';
+	import { formatDay, statusLabel } from '#lib/format';
 	import Stars from '#lib/components/Stars.svelte';
 	import StarInput from '#lib/components/StarInput.svelte';
 	import type { ActionData, PageData } from './$types';
@@ -89,7 +89,7 @@
 		{/if}
 
 		<div class="meta">
-			<span class="badge">{data.status}</span>
+			<span class="badge">{statusLabel(data.status)}</span>
 			<h1>{book.title}</h1>
 			<p class="byline">{byline}</p>
 			<p class="facts">
@@ -126,10 +126,10 @@
 						method="POST"
 						action="?/backToWant"
 						onsubmit={confirmSubmit(
-							`${book.title} will go back to Want to read. Its open Read is removed; Quotes and Notes stay.`
+							`${book.title} will go back to Bookstack. Its open Read is removed; Quotes and Notes stay.`
 						)}
 					>
-						<button type="submit" class="ghost">Back to Want to read</button>
+						<button type="submit" class="ghost">Back to Bookstack</button>
 					</form>
 				{:else}
 					<form method="POST" action="?/start">

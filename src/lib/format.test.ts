@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deleteReadMessage, formatDay, formatRating, RATING_STEPS } from './format';
+import { deleteReadMessage, formatDay, formatRating, listName, RATING_STEPS, statusLabel } from './format';
 
 describe('formatDay', () => {
 	it('returns an empty string for null, undefined, or empty', () => {
@@ -58,7 +58,7 @@ describe('deleteReadMessage', () => {
 			statusAfterDelete: 'Want to read',
 			annotationCount: 3
 		});
-		expect(msg).toContain('Dune will move to Want to read.');
+		expect(msg).toContain('Dune will move to Bookstack.');
 		expect(msg).toContain(
 			'Its 3 Quotes and Notes stay, but you can’t add new ones until you start it again.'
 		);
@@ -71,7 +71,7 @@ describe('deleteReadMessage', () => {
 			statusAfterDelete: 'Want to read',
 			annotationCount: 0
 		});
-		expect(msg).toContain('Dune will move to Want to read.');
+		expect(msg).toContain('Dune will move to Bookstack.');
 		expect(msg).not.toContain('stay');
 	});
 
@@ -82,7 +82,21 @@ describe('deleteReadMessage', () => {
 			statusAfterDelete: 'Finished',
 			annotationCount: 1
 		});
-		expect(msg).toContain('Dune will move to Finished.');
+		expect(msg).toContain('Dune will move to Books.');
 		expect(msg).not.toContain('start it again');
+	});
+});
+
+describe('listName and statusLabel', () => {
+	it('shows Want to read as Bookstack and the Finished list as Books', () => {
+		expect(listName('Want to read')).toBe('Bookstack');
+		expect(listName('Finished')).toBe('Books');
+		expect(listName('Reading')).toBe('Reading');
+		expect(listName('Abandoned')).toBe('Abandoned');
+	});
+
+	it('keeps a Finished Book badged as Finished', () => {
+		expect(statusLabel('Finished')).toBe('Finished');
+		expect(statusLabel('Want to read')).toBe('Bookstack');
 	});
 });

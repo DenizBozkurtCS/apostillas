@@ -15,6 +15,25 @@ export function formatDay(value: string | null | undefined): string {
 	return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+/**
+ * The name the UI shows for a Reading Status's list. The domain keeps its
+ * glossary names; the screens call Want to read "Bookstack" and the Finished
+ * list "Books".
+ */
+export function listName(status: ReadingStatus): string {
+	if (status === 'Want to read') return 'Bookstack';
+	if (status === 'Finished') return 'Books';
+	return status;
+}
+
+/**
+ * A Book's Reading Status as its badge shows it: like the list name, except a
+ * Finished Book is still "Finished" ("Books" names the shelf, not a status).
+ */
+export function statusLabel(status: ReadingStatus): string {
+	return status === 'Finished' ? 'Finished' : listName(status);
+}
+
 /** Every rating a reader can pick: ½ to 5 in half-star steps. */
 export const RATING_STEPS: readonly number[] = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
 
@@ -44,7 +63,7 @@ export function deleteReadMessage(opts: {
 		return 'Delete this Read? Its dates and rating will be lost.';
 	}
 
-	const parts = ['Delete this Read?', `${title} will move to ${statusAfterDelete}.`];
+	const parts = ['Delete this Read?', `${title} will move to ${listName(statusAfterDelete)}.`];
 	if (statusAfterDelete === 'Want to read') {
 		if (annotationCount > 0) {
 			const label = annotationCount === 1 ? 'Quote or Note stays' : 'Quotes and Notes stay';

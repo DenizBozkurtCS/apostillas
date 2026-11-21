@@ -45,14 +45,14 @@
 					<li>
 						<form method="POST" action="?/add" class="result">
 							<!-- Enter in a text field presses the form's first button: keep that
-							     "Want to read", not the 5-star button that follows. -->
+							     "Add to Bookstack", not the 5-star button that follows. -->
 							<button
 								type="submit"
 								name="addAs"
 								value="want"
 								class="visually-hidden"
 								tabindex="-1"
-								aria-hidden="true">Add to Want to read</button
+								aria-hidden="true">Add to Bookstack</button
 							>
 							{#if result.coverUrl}
 								<img class="cover" src={result.coverUrl} alt="" width="64" height="96" loading="lazy" />
@@ -74,8 +74,8 @@
 										name="addAs"
 										value="want"
 										class="primary icon"
-										title="Add to Want to read"
-										aria-label="Add to Want to read"><StatusIcon status="want" /></button
+										title="Add to Bookstack"
+										aria-label="Add to Bookstack"><StatusIcon status="want" /></button
 									>
 									<button
 										type="submit"
@@ -193,7 +193,7 @@
 			</label>
 
 			<div class="add-as" role="group" aria-label="Add to">
-				<button type="submit" name="addAs" value="want" class="primary">Add to Want to read</button>
+				<button type="submit" name="addAs" value="want" class="primary">Add to Bookstack</button>
 				<button type="submit" name="addAs" value="reading">Reading</button>
 				<button type="submit" name="addAs" value="finished">Read it</button>
 			</div>

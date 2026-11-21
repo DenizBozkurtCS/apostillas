@@ -18,6 +18,8 @@ _Avoid_: Copy, version, printing
 Where a Book stands for the reader: **Want to read**, **Reading**, **Finished**, or **Abandoned**. Always derived from the Book's Reads, never set directly.
 _Avoid_: State, shelf, list
 
+On screen, the four lists sit under a **Library** menu, and two have their own names there: the Want to read list is **Bookstack**, and the Finished list is **Books** (a single Finished Book is still badged "Finished"). These are UI labels only; code and docs keep the Reading Status names above.
+
 **Want to read**:
 The Reading Status of a Book the reader intends to read but has not started.
 _Avoid_: To-read, wishlist, backlog, TBR

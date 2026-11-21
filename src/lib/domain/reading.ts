@@ -161,7 +161,7 @@ export function start(reads: readonly Read[], today: string): OpResult {
 	if (openRead(reads)) {
 		return {
 			ok: false,
-			error: 'This Book already has an open Read. Finish, abandon, or go back to Want to read first.'
+			error: 'This Book already has an open Read. Finish, abandon, or go back to Bookstack first.'
 		};
 	}
 	return {
@@ -245,7 +245,7 @@ export function logPastFinished(
 export function revertToWantToRead(reads: readonly Read[]): OpResult {
 	const open = openRead(reads);
 	if (!open) {
-		return { ok: false, error: 'Only a Book that is Reading can go back to Want to read.' };
+		return { ok: false, error: 'Only a Book that is Reading can go back to Bookstack.' };
 	}
 	return { ok: true, mutation: { kind: 'delete', id: open.id, unlinkReadId: open.id } };
 }

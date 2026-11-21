@@ -9,10 +9,10 @@
 </script>
 
 <svelte:head>
-	<title>Finished · apostillas</title>
+	<title>Books · apostillas</title>
 </svelte:head>
 
-<Shelf title="Finished" count={data.finished.length} empty="You haven't finished anything yet.">
+<Shelf title="Books" count={data.finished.length} empty="You haven't finished anything yet.">
 	{#each data.finished as item (item.bookId)}
 		<BookCard
 			bookId={item.bookId}

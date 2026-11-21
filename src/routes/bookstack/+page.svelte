@@ -8,10 +8,10 @@
 </script>
 
 <svelte:head>
-	<title>Want to read · apostillas</title>
+	<title>Bookstack · apostillas</title>
 </svelte:head>
 
-<Shelf title="Want to read" count={data.wantToRead.length} empty="Nothing on your list yet.">
+<Shelf title="Bookstack" count={data.wantToRead.length} empty="Your Bookstack is empty.">
 	{#each data.wantToRead as item (item.bookId)}
 		<BookCard
 			bookId={item.bookId}
