@@ -27,6 +27,7 @@
 				{list.label}
 			</a>
 		{/each}
+		<a href="/search" aria-current={isActive('/search') ? 'page' : undefined}>Search</a>
 		<a class="add" href="/add">Add book</a>
 	</nav>
 </header>
