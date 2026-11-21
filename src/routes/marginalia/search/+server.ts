@@ -4,7 +4,7 @@ import { searchAnnotations } from '#lib/server/search';
 import type { RequestHandler } from './$types';
 
 /**
- * Live search for the Notes & Quotes page: ranked matches as
+ * Live search for Marginalia: ranked matches as
  * `{ kind, refId, snippetHtml }`. The page fetches this as you type, so the
  * search never goes into the page's URL. `snippetHtml` is escaped server-side
  * with <mark> around the matched terms (see #lib/server/search).

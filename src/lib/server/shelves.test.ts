@@ -10,7 +10,7 @@ import {
 	arrangeShelf,
 	createShelf,
 	deleteShelf,
-	loadBookcase,
+	loadShelves,
 	loadShelf,
 	moveShelf,
 	removeBookFromShelf,
@@ -33,11 +33,11 @@ function book(db: TestDb, title: string): number {
 	return db.insert(books).values({ title, authors: '["An Author"]' }).returning({ id: books.id }).get().id;
 }
 
-const names = (db: TestDb) => loadBookcase(db).map((s) => s.name);
+const names = (db: TestDb) => loadShelves(db).map((s) => s.name);
 const idOf = (db: TestDb, slug: string) => loadShelf(db, slug)!.id;
 
 describe('Shelves', () => {
-	it('creates Shelves at the top of the Bookcase', () => {
+	it('creates Shelves at the top of the list', () => {
 		const db = testDb();
 		expect(createShelf(db, 'Summer 2027!', '  Beach reads  ')).toMatchObject({ ok: true, slug: 'summer-2027' });
 		createShelf(db, 'Gifts for Dad');
@@ -143,7 +143,7 @@ describe('Shelves', () => {
 		expect(loadShelf(db, 's')!.books.map((x) => x.title)).toEqual(['C', 'A', 'D', 'B']);
 	});
 
-	it('lists every Shelf in Bookcase order with whether a Book is on it', () => {
+	it('lists every Shelf in the order the reader set with whether a Book is on it', () => {
 		const db = testDb();
 		createShelf(db, 'B');
 		createShelf(db, 'A');

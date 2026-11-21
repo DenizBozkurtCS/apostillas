@@ -20,8 +20,9 @@ _Avoid_: Shelf, label, category, genre
 A named collection of Books the reader curates and arranges by hand (e.g. "Summer 2027", "Gifts for Dad"), with an optional description. A Book can sit on many Shelves, whatever its Reading Status, and removing it from a Shelf or deleting the Shelf never deletes the Book. Unlike a Tag, a Shelf exists on its own, even when empty.
 _Avoid_: List, collection, playlist
 
-**Bookcase**:
+**Shelves** (the page):
 All of the reader's Shelves together, in the order the reader arranges them.
+_Avoid_: Bookcase
 
 ## Reading
 

@@ -5,7 +5,7 @@ import { annotatableBooks, canAnnotateBook, loadFeed } from '#lib/server/notes';
 import type { Actions, PageServerLoad } from './$types';
 
 /**
- * Notes & Quotes (apostillas-v2/02): every Note and Quote, newest first, and
+ * Marginalia (once Notes & Quotes, apostillas-v2/02): every Note and Quote, newest first, and
  * the Books a new one can be written about. Every write is scoped to the Book
  * the form names, through ./annotations.
  */

@@ -669,7 +669,7 @@
 				</span>
 			</label>
 		</form>
-		<p class="muted shelf-hint">Changes save as you tick. <a href="/bookcase">Go to the Bookcase</a></p>
+		<p class="muted shelf-hint">Changes save as you tick. <a href="/shelves">Go to Shelves</a></p>
 	</div>
 </Dialog>
 

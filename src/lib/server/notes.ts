@@ -1,5 +1,5 @@
 /**
- * The store-facing side of the Notes & Quotes page (apostillas-v2/02): every
+ * The store-facing side of Marginalia (once Notes & Quotes, apostillas-v2/02): every
  * Quote and Note across all Books, newest first, each with the Book it belongs
  * to, plus the Books a new Quote or Note can be written about.
  *
@@ -13,7 +13,7 @@ import type { Db } from './books';
 import { books, notes, quotes } from './db/schema';
 import { loadLibrary } from './lists';
 
-/** The Book shown on a Notes & Quotes card. */
+/** The Book shown on a Marginalia card. */
 export interface FeedBook {
 	id: number;
 	title: string;
@@ -43,6 +43,7 @@ export interface AnnotatableBook {
 	id: number;
 	title: string;
 	authors: string[];
+	coverPath: string | null;
 }
 
 function parseAuthors(json: string): string[] {
@@ -113,7 +114,8 @@ export function annotatableBooks(db: Db): AnnotatableBook[] {
 		.map((book) => ({
 			id: book.id,
 			title: book.title,
-			authors: book.authors
+			authors: book.authors,
+			coverPath: book.coverPath
 		}))
 		.sort((a, b) => a.title.localeCompare(b.title));
 }

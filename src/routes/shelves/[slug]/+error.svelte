@@ -13,7 +13,7 @@
 			? 'There’s no Shelf at this address. If it was renamed, it has a new address now.'
 			: page.error?.message}
 	</p>
-	<a class="button primary" href="/bookcase">Go to the Bookcase</a>
+	<a class="button primary" href="/shelves">Go to Shelves</a>
 </div>
 
 <style>

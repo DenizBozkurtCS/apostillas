@@ -135,7 +135,7 @@
 
 <svelte:window onclick={onWindowClick} onkeydown={onWindowKeydown} />
 
-<a class="back" href="/bookcase">← Bookcase</a>
+<a class="back" href="/shelves">← Shelves</a>
 
 <div class="head">
 	<div class="page-head title">

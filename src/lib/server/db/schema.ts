@@ -114,7 +114,7 @@ export const bookTags = sqliteTable(
 /**
  * A Shelf: a named collection of Books the reader curates and arranges (see
  * GLOSSARY.md). `slug` is derived from the name and is its web address, so it
- * is unique (src/lib/domain/shelves.ts). `position` orders the Bookcase,
+ * is unique (src/lib/domain/shelves.ts). `position` orders the Shelves,
  * smallest first; a new Shelf takes one less than the current smallest.
  */
 export const shelves = sqliteTable(

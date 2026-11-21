@@ -1,5 +1,5 @@
 /**
- * The store-facing side of Shelves and the Bookcase (apostillas-v3). Naming
+ * The store-facing side of Shelves (apostillas-v3). Naming
  * rules live in the pure ../domain/shelves; this module writes rows and reads
  * Shelves with their Books, in the reader's order.
  */
@@ -35,8 +35,8 @@ function tidyDescription(input: string | null | undefined): string | null {
 	return d === '' ? null : d.slice(0, MAX_SHELF_DESCRIPTION);
 }
 
-/** Every Shelf in Bookcase order, each with its Books in Shelf order. */
-export function loadBookcase(db: Db): ShelfWithBooks[] {
+/** Every Shelf in the reader's order, each with its Books in Shelf order. */
+export function loadShelves(db: Db): ShelfWithBooks[] {
 	const shelfRows = db.select().from(shelves).orderBy(asc(shelves.position), asc(shelves.id)).all();
 	const entries = db
 		.select()
@@ -68,7 +68,7 @@ export function loadBookcase(db: Db): ShelfWithBooks[] {
 
 /** One Shelf by its slug, with its Books, or null. */
 export function loadShelf(db: Db, slug: string): ShelfWithBooks | null {
-	return loadBookcase(db).find((s) => s.slug === slug) ?? null;
+	return loadShelves(db).find((s) => s.slug === slug) ?? null;
 }
 
 /** Whether another Shelf already uses `slug`. */
@@ -81,7 +81,7 @@ function slugTaken(db: Db, slug: string, exceptId?: number): string | null {
 	return row?.name ?? null;
 }
 
-/** Make a Shelf at the top of the Bookcase. */
+/** Make a Shelf at the top of the list. */
 export function createShelf(db: Db, nameInput: string, description?: string | null): ShelfResult {
 	const check = checkShelfName(nameInput);
 	if (!check.ok) return check;
@@ -112,7 +112,7 @@ export function setShelfDescription(db: Db, id: number, description: string | nu
 	db.update(shelves).set({ description: tidyDescription(description) }).where(eq(shelves.id, id)).run();
 }
 
-/** Swap a Shelf with its neighbour above (`up`) or below (`down`) on the Bookcase. */
+/** Swap a Shelf with its neighbour above (`up`) or below (`down`) in the list. */
 export function moveShelf(db: Db, id: number, direction: 'up' | 'down'): void {
 	db.transaction((tx) => {
 		const me = tx.select().from(shelves).where(eq(shelves.id, id)).get();
@@ -186,7 +186,7 @@ export function arrangeShelf(db: Db, shelfId: number, order: number[], removed: 
 	});
 }
 
-/** Every Shelf in Bookcase order, saying whether `bookId` is on it ("Add to Shelf…"). */
+/** Every Shelf in the reader's order, saying whether `bookId` is on it ("Add to Shelf…"). */
 export function shelvesForBook(db: Db, bookId: number): { id: number; name: string; on: boolean }[] {
 	const on = new Set(
 		db

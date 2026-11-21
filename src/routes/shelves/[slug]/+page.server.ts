@@ -66,7 +66,7 @@ export const actions: Actions = {
 		const res = renameShelf(db, shelf.id, text(form, 'name'));
 		if (!res.ok) return fail(400, { renameError: res.error });
 		// The address follows the name.
-		if (res.slug !== shelf.slug) redirect(303, `/bookcase/${encodeURIComponent(res.slug)}`);
+		if (res.slug !== shelf.slug) redirect(303, `/shelves/${encodeURIComponent(res.slug)}`);
 	},
 
 	describe: async ({ params, request }) => {
@@ -97,6 +97,6 @@ export const actions: Actions = {
 	delete: ({ params }) => {
 		const shelf = requireShelf(params);
 		deleteShelf(db, shelf.id);
-		redirect(303, '/bookcase');
+		redirect(303, '/shelves');
 	}
 };

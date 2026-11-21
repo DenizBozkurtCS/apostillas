@@ -1,11 +1,11 @@
 import { fail } from '@sveltejs/kit';
 import { db } from '#lib/server/db';
-import { createShelf, deleteShelf, loadBookcase, moveShelf, renameShelf } from '#lib/server/shelves';
+import { createShelf, deleteShelf, loadShelves, moveShelf, renameShelf } from '#lib/server/shelves';
 import type { Actions, PageServerLoad } from './$types';
 
-/** The Bookcase (apostillas-v3/01): every Shelf as a row, in the reader's order. */
+/** Shelves (once the Bookcase, apostillas-v3/01): every Shelf, in the reader's order. */
 export const load: PageServerLoad = () => {
-	return { shelves: loadBookcase(db) };
+	return { shelves: loadShelves(db) };
 };
 
 function text(form: FormData, key: string): string {

@@ -1,19 +1,25 @@
 <!--
-	Notes & Quotes (apostillas-v2/02): everything the reader has written, newest
+	Marginalia (once Notes & Quotes, apostillas-v2/02): everything the reader has written, newest
 	first, in two columns (a wider one for Notes, one for Quotes). Each column
 	shows the latest PAGE items with "See all" for the rest; on phones a switch
 	shows one column at a time.
 
 	The search box filters both columns as you type. It calls /notes/search, so
-	the page's URL stays /notes. While searching there is no limit, and cards
+	the page's URL stays /marginalia. While searching there is no limit, and cards
 	show the highlighted excerpt instead of the full text.
 
-	New Quotes and Notes pick their Book first; edits and deletes happen in place.
-	Forms submit with `enhance`, so nothing reloads.
+	"+ New Note" / "+ New Quote" open the same pop-ups as the Book page, after a
+	search for which Book (the Book's cover and title then sit on the left).
+	Edits and deletes happen in place. Forms submit with `enhance`, so nothing
+	reloads. Each card shows its Book's cover beside the title and author.
 -->
 <script lang="ts">
 	import { enhance, type SubmitFunction } from '$app/forms';
+	import BookPicker, { type PickableBook } from '#lib/components/BookPicker.svelte';
+	import ChosenBook from '#lib/components/ChosenBook.svelte';
 	import Clamp from '#lib/components/Clamp.svelte';
+	import CoverThumb from '#lib/components/CoverThumb.svelte';
+	import Dialog from '#lib/components/Dialog.svelte';
 	import MarkdownEditor from '#lib/components/MarkdownEditor.svelte';
 	import type { ActionData, PageData } from './$types';
 
@@ -28,7 +34,8 @@
 
 	let view = $state<'both' | 'notes' | 'quotes'>('both');
 	let mobileTab = $state<'notes' | 'quotes'>('notes');
-	let composing = $state<Kind | null>(null);
+	/** Which add pop-up is open. */
+	let dialog = $state<Kind | null>(null);
 	let editing = $state<string | null>(null);
 
 	// ---------- Search ----------
@@ -46,7 +53,7 @@
 			hits = null;
 			return;
 		}
-		const res = await fetch(`/notes/search?q=${encodeURIComponent(q)}`);
+		const res = await fetch(`/marginalia/search?q=${encodeURIComponent(q)}`);
 		if (!res.ok || seq !== searchSeq) return;
 		const body: { hits: { kind: Kind; refId: number; snippetHtml: string }[] } = await res.json();
 		if (seq === searchSeq) hits = body.hits;
@@ -79,13 +86,23 @@
 	const shownNotes = $derived(limited ? notes.slice(0, PAGE) : notes);
 	const shownQuotes = $derived(limited ? quotes.slice(0, PAGE) : quotes);
 
-	// ---------- Composing ----------
-	let composeBookId = $state<number | null>(null);
-	const composeBook = $derived(data.books.find((b) => b.id === composeBookId) ?? null);
+	// ---------- Adding ----------
+	/** The Book the new Note or Quote is about; null while still choosing. */
+	let picked = $state<PickableBook | null>(null);
 
-	function startComposing(kind: Kind) {
+	function openDialog(kind: Kind) {
 		editing = null;
-		composing = composing === kind ? null : kind;
+		picked = null;
+		dialog = kind;
+	}
+
+	/** Bind a pop-up's `open` to `dialog`; closing one starts the next from the search. */
+	function setDialogOpen(kind: Kind, open: boolean) {
+		if (open) dialog = kind;
+		else if (dialog === kind) {
+			dialog = null;
+			picked = null;
+		}
 	}
 
 	// ---------- Forms ----------
@@ -106,48 +123,27 @@
 		};
 	}
 
-	// A failed add reopens its composer.
-	$effect(() => {
-		if (form?.noteError && !editing) composing = 'note';
-		else if (form?.quoteError && !editing) composing = 'quote';
-	});
-
 	function seeAll(which: 'notes' | 'quotes') {
 		view = which;
-		composing = null;
 		window.scrollTo({ top: 0 });
 	}
 </script>
 
 <svelte:head>
-	<title>Notes & Quotes · apostillas</title>
+	<title>Marginalia · apostillas</title>
 </svelte:head>
 
-{#snippet bookLink(book: Note['book'])}
-	<a class="card-book" href={`/books/${book.id}`}>
-		{#if book.coverPath}
-			<img src={`/${book.coverPath}`} alt="" width="24" height="36" loading="lazy" />
-		{:else}
-			<span class="mini-cover" aria-hidden="true"></span>
-		{/if}
-		<span class="card-book-title">{book.title}</span>
+{#snippet cardCover(book: Note['book'])}
+	<a class="card-cover" href={`/books/${book.id}`} tabindex="-1" aria-hidden="true">
+		<CoverThumb coverPath={book.coverPath} width="4.5rem" />
 	</a>
 {/snippet}
 
-{#snippet bookPicker()}
-	{#if data.books.length === 0}
-		<p class="muted">Add a Book to write about it.</p>
-	{:else}
-		<label class="field">
-			<span>Book</span>
-			<select name="bookId" required bind:value={composeBookId}>
-				<option value={null} disabled>Choose a Book…</option>
-				{#each data.books as b (b.id)}
-					<option value={b.id}>{b.title}{b.authors.length ? ` — ${b.authors.join(', ')}` : ''}</option>
-				{/each}
-			</select>
-		</label>
-	{/if}
+{#snippet bookLink(book: Note['book'])}
+	<a class="card-book" href={`/books/${book.id}`}>
+		<span class="card-title">{book.title}</span>
+		<span class="card-author">{book.authors.join(', ') || 'Unknown author'}</span>
+	</a>
 {/snippet}
 
 {#snippet tools(key: string, action: string, idName: string, item: Note | Quote, message: string)}
@@ -156,10 +152,7 @@
 			type="button"
 			class="ghost small"
 			aria-expanded={editing === key}
-			onclick={() => {
-				composing = null;
-				editing = editing === key ? null : key;
-			}}>{editing === key ? 'Cancel' : 'Edit'}</button
+			onclick={() => (editing = editing === key ? null : key)}>{editing === key ? 'Cancel' : 'Edit'}</button
 		>
 		<form method="POST" {action} use:enhance={submit({ confirm: message })}>
 			<input type="hidden" name="bookId" value={item.book.id} />
@@ -171,7 +164,7 @@
 
 <div class="page">
 	<div class="page-head">
-		<h1>Notes & Quotes</h1>
+		<h1>Marginalia</h1>
 	</div>
 
 	<div class="search" role="search">
@@ -202,7 +195,7 @@
 
 	{#if view !== 'both'}
 		<button type="button" class="ghost back" onclick={() => (view = 'both')}
-			>← Back to Notes & Quotes</button
+			>← Back to Marginalia</button
 		>
 	{:else}
 		<div class="switch" role="tablist" aria-label="Show">
@@ -231,33 +224,13 @@
 			>
 				<div class="column-head">
 					<h2 id="notes-heading">Notes <span class="count">{notes.length}</span></h2>
-					<button
-						type="button"
-						class="small"
-						class:primary={composing !== 'note'}
-						aria-expanded={composing === 'note'}
-						onclick={() => startComposing('note')}
-						>{composing === 'note' ? 'Cancel' : '+ New Note'}</button
+					<button type="button" class="small primary" onclick={() => openDialog('note')}
+						>+ New Note</button
 					>
 				</div>
 
-				{#if form?.noteError}
+				{#if form?.noteError && dialog === null}
 					<p class="error" role="alert">{form.noteError}</p>
-				{/if}
-
-				{#if composing === 'note'}
-					<form
-						method="POST"
-						action="?/addNote"
-						class="stack composer"
-						use:enhance={submit({ done: () => (composing = null) })}
-					>
-						{@render bookPicker()}
-						{#if composeBook}
-							<MarkdownEditor autofocus />
-							<button type="submit" class="primary small">Add Note</button>
-						{/if}
-					</form>
 				{/if}
 
 				{#if shownNotes.length === 0}
@@ -267,36 +240,39 @@
 						{#each shownNotes as n (n.id)}
 							{@const key = `note-${n.id}`}
 							<li class="card">
-								{@render bookLink(n.book)}
-								{#if editing === key}
-									<form
-										method="POST"
-										action="?/editNote"
-										class="stack edit"
-										use:enhance={submit({ done: () => (editing = null) })}
-									>
-										<input type="hidden" name="bookId" value={n.book.id} />
-										<input type="hidden" name="noteId" value={n.id} />
-										<MarkdownEditor value={n.body} />
-										<div class="form-actions">
-											<button type="submit" class="primary small">Save</button>
-											<button type="button" class="ghost small" onclick={() => (editing = null)}
-												>Cancel</button
-											>
-										</div>
-									</form>
-								{:else}
-									{#if searching && snippets.get(key)}
-										<!-- Escaped server-side with <mark> around matches. -->
-										<p class="snippet">{@html snippets.get(key)}</p>
+								{@render cardCover(n.book)}
+								<div class="card-main">
+									{@render bookLink(n.book)}
+									{#if editing === key}
+										<form
+											method="POST"
+											action="?/editNote"
+											class="stack edit"
+											use:enhance={submit({ done: () => (editing = null) })}
+										>
+											<input type="hidden" name="bookId" value={n.book.id} />
+											<input type="hidden" name="noteId" value={n.id} />
+											<MarkdownEditor value={n.body} />
+											<div class="form-actions">
+												<button type="submit" class="primary small">Save</button>
+												<button type="button" class="ghost small" onclick={() => (editing = null)}
+													>Cancel</button
+												>
+											</div>
+										</form>
 									{:else}
-										<Clamp lines={6}>
-											<!-- Sanitised server-side in src/lib/markdown.ts. -->
-											<div class="note-body">{@html n.html}</div>
-										</Clamp>
+										{#if searching && snippets.get(key)}
+											<!-- Escaped server-side with <mark> around matches. -->
+											<p class="snippet">{@html snippets.get(key)}</p>
+										{:else}
+											<Clamp lines={6}>
+												<!-- Sanitised server-side in src/lib/markdown.ts. -->
+												<div class="note-body">{@html n.html}</div>
+											</Clamp>
+										{/if}
+										{@render tools(key, '?/deleteNote', 'noteId', n, 'Delete this Note?')}
 									{/if}
-									{@render tools(key, '?/deleteNote', 'noteId', n, 'Delete this Note?')}
-								{/if}
+								</div>
 							</li>
 						{/each}
 					</ul>
@@ -318,41 +294,13 @@
 			>
 				<div class="column-head">
 					<h2 id="quotes-heading">Quotes <span class="count">{quotes.length}</span></h2>
-					<button
-						type="button"
-						class="small"
-						class:primary={composing !== 'quote'}
-						aria-expanded={composing === 'quote'}
-						onclick={() => startComposing('quote')}
-						>{composing === 'quote' ? 'Cancel' : '+ New Quote'}</button
+					<button type="button" class="small primary" onclick={() => openDialog('quote')}
+						>+ New Quote</button
 					>
 				</div>
 
-				{#if form?.quoteError}
+				{#if form?.quoteError && dialog === null}
 					<p class="error" role="alert">{form.quoteError}</p>
-				{/if}
-
-				{#if composing === 'quote'}
-					<form
-						method="POST"
-						action="?/addQuote"
-						class="stack composer"
-						use:enhance={submit({ done: () => (composing = null) })}
-					>
-						{@render bookPicker()}
-						{#if composeBook}
-							<label class="field">
-								<span>Quote</span>
-								<!-- svelte-ignore a11y_autofocus -->
-								<textarea name="text" rows="3" required autofocus></textarea>
-							</label>
-							<label class="field">
-								<span>Page or location (optional)</span>
-								<input name="location" type="text" />
-							</label>
-							<button type="submit" class="primary small">Add Quote</button>
-						{/if}
-					</form>
 				{/if}
 
 				{#if shownQuotes.length === 0}
@@ -362,43 +310,46 @@
 						{#each shownQuotes as q (q.id)}
 							{@const key = `quote-${q.id}`}
 							<li class="card">
-								{@render bookLink(q.book)}
-								{#if editing === key}
-									<form
-										method="POST"
-										action="?/editQuote"
-										class="stack edit"
-										use:enhance={submit({ done: () => (editing = null) })}
-									>
-										<input type="hidden" name="bookId" value={q.book.id} />
-										<input type="hidden" name="quoteId" value={q.id} />
-										<label class="field">
-											<span>Quote</span>
-											<textarea name="text" rows="3" required>{q.text}</textarea>
-										</label>
-										<label class="field">
-											<span>Page or location (optional)</span>
-											<input name="location" type="text" value={q.location ?? ''} />
-										</label>
-										<div class="form-actions">
-											<button type="submit" class="primary small">Save</button>
-											<button type="button" class="ghost small" onclick={() => (editing = null)}
-												>Cancel</button
-											>
-										</div>
-									</form>
-								{:else}
-									{#if searching && snippets.get(key)}
-										<!-- Escaped server-side with <mark> around matches. -->
-										<blockquote class="quote-text">{@html snippets.get(key)}</blockquote>
+								{@render cardCover(q.book)}
+								<div class="card-main">
+									{@render bookLink(q.book)}
+									{#if editing === key}
+										<form
+											method="POST"
+											action="?/editQuote"
+											class="stack edit"
+											use:enhance={submit({ done: () => (editing = null) })}
+										>
+											<input type="hidden" name="bookId" value={q.book.id} />
+											<input type="hidden" name="quoteId" value={q.id} />
+											<label class="field">
+												<span>Quote</span>
+												<textarea name="text" rows="3" required>{q.text}</textarea>
+											</label>
+											<label class="field">
+												<span>Page or location (optional)</span>
+												<input name="location" type="text" value={q.location ?? ''} />
+											</label>
+											<div class="form-actions">
+												<button type="submit" class="primary small">Save</button>
+												<button type="button" class="ghost small" onclick={() => (editing = null)}
+													>Cancel</button
+												>
+											</div>
+										</form>
 									{:else}
-										<blockquote class="quote-text">{q.text}</blockquote>
+										{#if searching && snippets.get(key)}
+											<!-- Escaped server-side with <mark> around matches. -->
+											<blockquote class="quote-text">{@html snippets.get(key)}</blockquote>
+										{:else}
+											<blockquote class="quote-text">{q.text}</blockquote>
+										{/if}
+										<div class="card-foot">
+											{#if q.location}<span class="location">{q.location}</span>{/if}
+											{@render tools(key, '?/deleteQuote', 'quoteId', q, 'Delete this Quote?')}
+										</div>
 									{/if}
-									<div class="card-foot">
-										{#if q.location}<span class="location">{q.location}</span>{/if}
-										{@render tools(key, '?/deleteQuote', 'quoteId', q, 'Delete this Quote?')}
-									</div>
-								{/if}
+								</div>
 							</li>
 						{/each}
 					</ul>
@@ -412,6 +363,72 @@
 		{/if}
 	</div>
 </div>
+
+<Dialog
+	title="Add a Note"
+	wide={picked !== null}
+	bind:open={() => dialog === 'note', (v) => setDialogOpen('note', v)}
+>
+	{#if picked === null}
+		<BookPicker books={data.books} onpick={(b) => (picked = b)} />
+	{:else}
+		<ChosenBook book={picked} onchange={() => (picked = null)}>
+			<form
+				method="POST"
+				action="?/addNote"
+				class="stack"
+				use:enhance={submit({ done: () => setDialogOpen('note', false) })}
+			>
+				{#if form?.noteError}<p class="error" role="alert">{form.noteError}</p>{/if}
+				<input type="hidden" name="bookId" value={picked.id} />
+				<MarkdownEditor autofocus minHeight="calc(100vh - 18rem)" />
+				<div class="form-actions">
+					<button type="submit" class="primary">Add Note</button>
+					<button type="button" class="ghost" onclick={() => setDialogOpen('note', false)}
+						>Cancel</button
+					>
+				</div>
+			</form>
+		</ChosenBook>
+	{/if}
+</Dialog>
+
+<Dialog
+	title="Add a Quote"
+	medium={picked !== null}
+	bind:open={() => dialog === 'quote', (v) => setDialogOpen('quote', v)}
+>
+	{#if picked === null}
+		<BookPicker books={data.books} onpick={(b) => (picked = b)} />
+	{:else}
+		<ChosenBook book={picked} onchange={() => (picked = null)}>
+			<form
+				method="POST"
+				action="?/addQuote"
+				class="stack"
+				use:enhance={submit({ done: () => setDialogOpen('quote', false) })}
+			>
+				{#if form?.quoteError}<p class="error" role="alert">{form.quoteError}</p>{/if}
+				<input type="hidden" name="bookId" value={picked.id} />
+				<label class="field">
+					<span>Quote</span>
+					<!-- svelte-ignore a11y_autofocus -->
+					<textarea name="text" rows="4" required autofocus></textarea>
+				</label>
+				<label class="field">
+					<span>Page or location (optional)</span>
+					<input name="location" type="text" />
+				</label>
+				<div class="form-actions">
+					<button type="submit" class="primary">Add Quote</button>
+					<button type="button" class="ghost" onclick={() => setDialogOpen('quote', false)}
+						>Cancel</button
+					>
+				</div>
+			</form>
+		</ChosenBook>
+	{/if}
+</Dialog>
 
 <style>
 	.page {
@@ -514,13 +531,6 @@
 		font-size: 0.85em;
 		font-weight: 500;
 	}
-	.composer {
-		margin: 0.75rem 0 1rem;
-		padding: 1rem;
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		background: var(--surface);
-	}
 	.empty {
 		font-size: 0.92rem;
 	}
@@ -532,43 +542,48 @@
 		margin: 0;
 	}
 	.card {
-		padding: 1rem 0;
+		display: grid;
+		grid-template-columns: 4.5rem minmax(0, 1fr);
+		gap: 1.1rem;
+		align-items: start;
+		padding: 1.1rem 0;
 		border-bottom: 1px solid var(--border);
+	}
+	.card-cover {
+		display: block;
+		border-radius: var(--radius-sm);
+		transition: transform 0.15s;
+	}
+	.card-cover:hover {
+		transform: translateY(-1px);
+	}
+	.card-main {
+		min-width: 0;
 	}
 	.card:last-child {
 		border-bottom: none;
 	}
 	.card-book {
 		display: flex;
+		flex-direction: column;
 		width: fit-content;
 		max-width: 100%;
-		min-width: 0;
-		align-items: center;
-		gap: 0.5rem;
-		margin-bottom: 0.5rem;
-		color: var(--text-muted);
-		font-size: 0.82rem;
-		font-weight: 600;
+		margin-bottom: 0.6rem;
+		color: inherit;
 		text-decoration: none;
+		line-height: 1.3;
 	}
-	.card-book:hover {
+	.card-title {
+		font-weight: 650;
+		font-size: 0.95rem;
+		overflow-wrap: anywhere;
+	}
+	.card-book:hover .card-title {
 		color: var(--accent);
 	}
-	.card-book img,
-	.mini-cover {
-		width: 20px;
-		height: 30px;
-		object-fit: cover;
-		border-radius: 2px;
-		box-shadow: 0 0 0 1px var(--border);
-		background: linear-gradient(160deg, var(--surface), var(--accent-soft));
-		flex-shrink: 0;
-	}
-	.card-book-title {
-		min-width: 0;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+	.card-author {
+		font-size: 0.82rem;
+		color: var(--text-muted);
 	}
 	.note-body {
 		line-height: 1.6;
