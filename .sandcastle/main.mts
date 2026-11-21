@@ -40,6 +40,10 @@ await run({
   // platform-specific binaries and any packages added since the last copy.
   copyToWorktree: ["node_modules"],
 
+  // Copying node_modules with Git Bash's cp on Windows takes over a minute,
+  // longer than the 60s default.
+  timeouts: { copyToWorktreeMs: 300_000 },
+
   // Lifecycle hooks — commands grouped by where they run (host or sandbox).
   hooks: {
     sandbox: {
