@@ -1,12 +1,24 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { isRedirect } from '@sveltejs/kit';
 import { handle } from './hooks.server';
 import { sessionToken, SESSION_COOKIE } from '#lib/server/auth';
 
-const ORIGINAL = process.env.APP_PASSWORD;
+const ORIGINAL = { APP_PASSWORD: process.env.APP_PASSWORD, DATA_DIR: process.env.DATA_DIR };
 
+// The session secret lives in the data folder: use a throwaway one, never ./data.
+beforeAll(() => {
+	process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'apostillas-hooks-'));
+});
+afterAll(() => {
+	if (ORIGINAL.DATA_DIR === undefined) delete process.env.DATA_DIR;
+	else process.env.DATA_DIR = ORIGINAL.DATA_DIR;
+});
 afterEach(() => {
-	process.env.APP_PASSWORD = ORIGINAL;
+	if (ORIGINAL.APP_PASSWORD === undefined) delete process.env.APP_PASSWORD;
+	else process.env.APP_PASSWORD = ORIGINAL.APP_PASSWORD;
 });
 
 /** A minimal RequestEvent: just the cookie jar, pathname, and locals the hook touches. */

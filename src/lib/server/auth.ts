@@ -3,12 +3,16 @@
  * so there is no user model: when `APP_PASSWORD` is set the whole app sits
  * behind that one password; when it is unset there is no login at all.
  *
- * This module is the pure core of the gate — reading the password, deriving the
- * session token, and the constant-time checks — so it can be unit tested. The
+ * This module is the core of the gate — reading the password, the signing
+ * secret, the session token, and the constant-time checks — so it can be unit
+ * tested. The
  * `hooks.server.ts` handle and the `login`/`logout` routes wire it to requests.
  */
 
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { ensureDataDir } from './paths';
 
 /** Name of the cookie that marks a browser as having entered the password. */
 export const SESSION_COOKIE = 'apostillas_session';
@@ -31,13 +35,49 @@ export function isGated(): boolean {
 	return appPassword() !== null;
 }
 
+/** Name of the file, in the data folder, holding the key that signs sessions. */
+export const SECRET_FILENAME = 'session-secret';
+
+const secrets = new Map<string, Buffer>();
+
 /**
- * The value stored in the session cookie: a hash of the password, so the cookie
- * never carries the password itself and every stored session is invalidated the
- * moment the password changes.
+ * The random key that signs session cookies, read from the data folder. It is
+ * made (32 random bytes, readable by the owner only) the first time it is
+ * needed. Deleting the file logs every browser out.
  */
-export function sessionToken(password: string): string {
-	return crypto.createHash('sha256').update(`apostillas:${password}`).digest('hex');
+export function sessionSecret(folder: string = ensureDataDir()): Buffer {
+	const file = path.join(folder, SECRET_FILENAME);
+	const cached = secrets.get(file);
+	if (cached) return cached;
+
+	let secret: Buffer;
+	try {
+		secret = Buffer.from(fs.readFileSync(file, 'utf8').trim(), 'hex');
+	} catch {
+		secret = Buffer.alloc(0);
+	}
+	if (secret.length < 32) {
+		const fresh = crypto.randomBytes(32);
+		try {
+			// 'wx': if another request made it first, use theirs.
+			fs.writeFileSync(file, fresh.toString('hex'), { flag: 'wx', mode: 0o600 });
+			secret = fresh;
+		} catch {
+			secret = Buffer.from(fs.readFileSync(file, 'utf8').trim(), 'hex');
+		}
+	}
+	secrets.set(file, secret);
+	return secret;
+}
+
+/**
+ * The value stored in the session cookie: an HMAC of the password under the
+ * data folder's secret. The cookie reveals nothing about the password and
+ * can't be used to guess it offline, and every session ends the moment the
+ * password (or the secret) changes.
+ */
+export function sessionToken(password: string, secret: Buffer = sessionSecret()): string {
+	return crypto.createHmac('sha256', secret).update(`apostillas-session:${password}`).digest('hex');
 }
 
 /** Constant-time equality for two secrets of possibly different length. */
@@ -54,9 +94,13 @@ export function passwordMatches(input: string, password: string): boolean {
 }
 
 /** Whether a cookie value is a session that authorises access for `password`. */
-export function isValidSession(cookieValue: string | undefined, password: string): boolean {
+export function isValidSession(
+	cookieValue: string | undefined,
+	password: string,
+	secret: Buffer = sessionSecret()
+): boolean {
 	if (!cookieValue) return false;
-	return constantTimeEqual(cookieValue, sessionToken(password));
+	return constantTimeEqual(cookieValue, sessionToken(password, secret));
 }
 
 /**

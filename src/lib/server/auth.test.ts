@@ -1,3 +1,7 @@
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
 	appPassword,
@@ -5,15 +9,22 @@ import {
 	isPublicPath,
 	isValidSession,
 	passwordMatches,
+	SECRET_FILENAME,
 	sessionCookieOptions,
+	sessionSecret,
 	sessionToken
 } from './auth';
+
+const tempDir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'apostillas-auth-'));
+const SECRET = crypto.randomBytes(32);
 
 const ORIGINAL = { APP_PASSWORD: process.env.APP_PASSWORD, NODE_ENV: process.env.NODE_ENV };
 
 afterEach(() => {
-	process.env.APP_PASSWORD = ORIGINAL.APP_PASSWORD;
-	process.env.NODE_ENV = ORIGINAL.NODE_ENV;
+	for (const [key, value] of Object.entries(ORIGINAL)) {
+		if (value === undefined) delete process.env[key];
+		else process.env[key] = value;
+	}
 });
 
 describe('appPassword', () => {
@@ -45,22 +56,45 @@ describe('passwordMatches', () => {
 	});
 });
 
+describe('sessionSecret', () => {
+	it('is made on first use, owner-readable, and the same afterwards', () => {
+		const dir = tempDir();
+		const first = sessionSecret(dir);
+		expect(first.length).toBe(32);
+		const file = path.join(dir, SECRET_FILENAME);
+		expect(fs.readFileSync(file, 'utf8')).toBe(first.toString('hex'));
+		if (process.platform !== 'win32') expect(fs.statSync(file).mode & 0o777).toBe(0o600);
+		expect(sessionSecret(dir).equals(first)).toBe(true);
+	});
+
+	it('differs between data folders', () => {
+		expect(sessionSecret(tempDir()).equals(sessionSecret(tempDir()))).toBe(false);
+	});
+});
+
 describe('session token and validation', () => {
-	it('does not contain the password', () => {
-		expect(sessionToken('hunter2')).not.toContain('hunter2');
+	it('reveals nothing about the password: not it, nor its plain hash', () => {
+		const token = sessionToken('hunter2', SECRET);
+		expect(token).not.toContain('hunter2');
+		const plain = (s: string) => crypto.createHash('sha256').update(s).digest('hex');
+		expect(token).not.toBe(plain('hunter2'));
+		expect(token).not.toBe(plain('apostillas:hunter2'));
 	});
 
-	it('accepts a cookie holding the token for the current password', () => {
+	it('accepts a cookie holding the token for the current password and secret', () => {
 		const password = 'hunter2';
-		expect(isValidSession(sessionToken(password), password)).toBe(true);
+		expect(isValidSession(sessionToken(password, SECRET), password, SECRET)).toBe(true);
 	});
 
-	it('rejects a missing cookie, the raw password, or a token for another password', () => {
+	it('rejects a missing cookie, the raw password, another password, or another secret', () => {
 		const password = 'hunter2';
-		expect(isValidSession(undefined, password)).toBe(false);
-		expect(isValidSession('', password)).toBe(false);
-		expect(isValidSession(password, password)).toBe(false);
-		expect(isValidSession(sessionToken('old-password'), password)).toBe(false);
+		expect(isValidSession(undefined, password, SECRET)).toBe(false);
+		expect(isValidSession('', password, SECRET)).toBe(false);
+		expect(isValidSession(password, password, SECRET)).toBe(false);
+		// Changing APP_PASSWORD logs every session out.
+		expect(isValidSession(sessionToken('old-password', SECRET), password, SECRET)).toBe(false);
+		// So does a new secret (deleting the secret file).
+		expect(isValidSession(sessionToken(password, crypto.randomBytes(32)), password, SECRET)).toBe(false);
 	});
 });
 
