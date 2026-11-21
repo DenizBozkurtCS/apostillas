@@ -1,5 +1,7 @@
 /** Presentation helpers shared by the Reading Status list screens. */
 
+import type { ReadingStatus } from './domain/reading';
+
 /**
  * Format a stored date for display. Accepts an ISO day (`YYYY-MM-DD`) or a
  * SQLite timestamp (`YYYY-MM-DD HH:MM:SS`); only the day part is shown. Returns
@@ -18,4 +20,36 @@ export function ratingStars(rating: number | null | undefined): string {
 	if (rating == null) return '';
 	const n = Math.max(0, Math.min(5, Math.round(rating)));
 	return '★'.repeat(n) + '☆'.repeat(5 - n);
+}
+
+/**
+ * The confirmation shown before deleting a Read. When the delete would change
+ * the Book's Reading Status it says so; a move to Want to read also warns that
+ * existing Quotes and Notes stay but no new ones can be added until the Book is
+ * started again (ADR-0005; Quotes and Notes cannot be added to a Want to read
+ * Book).
+ */
+export function deleteReadMessage(opts: {
+	title: string;
+	currentStatus: ReadingStatus;
+	statusAfterDelete: ReadingStatus;
+	annotationCount: number;
+}): string {
+	const { title, currentStatus, statusAfterDelete, annotationCount } = opts;
+	if (statusAfterDelete === currentStatus) {
+		return 'Delete this Read? Its dates and rating will be lost.';
+	}
+
+	const parts = ['Delete this Read?', `${title} will move to ${statusAfterDelete}.`];
+	if (statusAfterDelete === 'Want to read') {
+		if (annotationCount > 0) {
+			const label = annotationCount === 1 ? 'Quote or Note stays' : 'Quotes and Notes stay';
+			parts.push(
+				`Its ${annotationCount} ${label}, but you can’t add new ones until you start it again.`
+			);
+		} else {
+			parts.push('You can’t add Quotes or Notes until you start it again.');
+		}
+	}
+	return parts.join(' ');
 }

@@ -1,5 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fetchOpenLibraryDescription, searchBooks, type BookSearchResult } from './booksearch';
+import {
+	fetchOpenLibraryDescription,
+	fetchWorkEditionCovers,
+	searchBooks,
+	type BookSearchResult
+} from './booksearch';
 
 /** Build a stub `fetch` that returns canned JSON per host and records calls. */
 function stubFetch(byHost: Record<string, unknown>) {
@@ -126,5 +131,40 @@ describe('fetchOpenLibraryDescription', () => {
 		expect(await fetchOpenLibraryDescription('/works/OL1W', fetchImpl)).toBe('');
 		expect(await fetchOpenLibraryDescription('/authors/OL1A', fetchImpl)).toBe('');
 		expect(calls).toHaveLength(1);
+	});
+});
+
+describe('fetchWorkEditionCovers', () => {
+	it('lists each edition cover as a cover-host URL, newest-labelled and deduped', async () => {
+		const { fetchImpl, calls } = stubFetch({
+			[OPEN_LIBRARY]: {
+				entries: [
+					{ title: 'Dune (1965)', covers: [111], publish_date: '1965' },
+					{ title: 'Dune (reissue)', covers: [222, -1], publish_date: '1990' },
+					// Repeat cover id and a no-cover edition are ignored.
+					{ title: 'Dune (dup)', covers: [111] },
+					{ title: 'Dune (no cover)', covers: [-1] }
+				]
+			}
+		});
+
+		const covers = await fetchWorkEditionCovers('/works/OL45883W', fetchImpl);
+
+		expect(calls[0]).toContain('/works/OL45883W/editions.json');
+		expect(covers).toEqual([
+			{ coverUrl: 'https://covers.openlibrary.org/b/id/111-L.jpg', label: 'Dune (1965)' },
+			{ coverUrl: 'https://covers.openlibrary.org/b/id/222-L.jpg', label: 'Dune (reissue)' }
+		]);
+	});
+
+	it('returns an empty list for an invalid work ID without fetching', async () => {
+		const fetchImpl = vi.fn();
+		expect(await fetchWorkEditionCovers('/authors/OL1A', fetchImpl)).toEqual([]);
+		expect(fetchImpl).not.toHaveBeenCalled();
+	});
+
+	it('returns an empty list when the request fails', async () => {
+		const fetchImpl = vi.fn(async () => new Response('nope', { status: 500 }));
+		expect(await fetchWorkEditionCovers('/works/OL45883W', fetchImpl)).toEqual([]);
 	});
 });

@@ -114,6 +114,53 @@ export async function fetchOpenLibraryDescription(
 	}
 }
 
+/** A cover offered by one of a work's editions, for the cover picker. */
+export interface EditionCover {
+	/** Absolute URL on the Open Library cover host. */
+	coverUrl: string;
+	/** The edition's title, to label the choice. */
+	label: string;
+}
+
+/**
+ * The covers of a work's editions, so the reader can pick a real edition cover
+ * when the work-level cover is wrong (e.g. a title-page scan). Best-effort:
+ * returns [] for an invalid work ID or a failed request. Covers are deduped by
+ * id and point at the Open Library cover host, so {@link trustedCoverUrl}
+ * accepts them.
+ */
+export async function fetchWorkEditionCovers(
+	workId: string,
+	fetchImpl: FetchLike = fetch
+): Promise<EditionCover[]> {
+	if (!isOpenLibraryWorkId(workId)) return [];
+	try {
+		const res = await fetchImpl(`https://openlibrary.org${workId}/editions.json?limit=100`);
+		if (!res.ok) return [];
+		const body = (await res.json()) as { entries?: OpenLibraryEdition[] };
+		const seen = new Set<number>();
+		const covers: EditionCover[] = [];
+		for (const entry of body.entries ?? []) {
+			for (const id of entry.covers ?? []) {
+				if (id <= 0 || seen.has(id)) continue;
+				seen.add(id);
+				covers.push({
+					coverUrl: `https://covers.openlibrary.org/b/id/${id}-L.jpg`,
+					label: entry.title ?? 'Untitled edition'
+				});
+			}
+		}
+		return covers;
+	} catch {
+		return [];
+	}
+}
+
+interface OpenLibraryEdition {
+	title?: string;
+	covers?: number[];
+}
+
 async function searchGoogleBooks(q: string, fetchImpl: FetchLike): Promise<BookSearchResult[]> {
 	const url =
 		'https://www.googleapis.com/books/v1/volumes?maxResults=20' +

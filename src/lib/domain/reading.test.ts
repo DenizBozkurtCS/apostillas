@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
 	abandon,
 	canAnnotate,
+	deleteRead,
+	editRead,
 	finish,
 	isReread,
 	logPastFinished,
@@ -182,6 +184,14 @@ describe('finish', () => {
 			true
 		);
 	});
+
+	it('uses a reader-set end date when one is given', () => {
+		const reads = [read({ id: 7, outcome: 'open', startDate: '2026-01-01' })];
+		const result = finish(reads, TODAY, { endDate: '2026-03-15' });
+		expect(result.ok && result.mutation.kind === 'update' && result.mutation.patch.endDate).toBe(
+			'2026-03-15'
+		);
+	});
 });
 
 describe('abandon', () => {
@@ -244,6 +254,53 @@ describe('revertToWantToRead', () => {
 	it('is refused when the Book is not Reading', () => {
 		const reads = [read({ id: 1, outcome: 'finished', endDate: TODAY })];
 		expect(revertToWantToRead(reads).ok).toBe(false);
+	});
+});
+
+describe('editRead', () => {
+	it('updates start date, end date and rating', () => {
+		const r = read({ id: 4, outcome: 'finished', startDate: '2026-01-01', endDate: '2026-02-01' });
+		const result = editRead(r, { startDate: '2026-01-05', endDate: '2026-02-10', rating: 4 });
+		expect(result).toEqual({
+			ok: true,
+			mutation: {
+				kind: 'update',
+				id: 4,
+				patch: { startDate: '2026-01-05', endDate: '2026-02-10', rating: 4 }
+			}
+		});
+	});
+
+	it('clears a rating when set to null', () => {
+		const r = read({ id: 1, outcome: 'finished', endDate: TODAY, rating: 5 });
+		const result = editRead(r, { rating: null });
+		expect(result.ok && result.mutation.kind === 'update' && result.mutation.patch.rating).toBeNull();
+	});
+
+	it('rejects an out-of-range rating', () => {
+		const r = read({ id: 1, outcome: 'finished', endDate: TODAY });
+		expect(editRead(r, { rating: 7 }).ok).toBe(false);
+	});
+
+	it('rejects an end date before the start date', () => {
+		const r = read({ id: 1, outcome: 'finished', startDate: '2026-01-01', endDate: '2026-02-01' });
+		expect(editRead(r, { endDate: '2025-12-01' }).ok).toBe(false);
+	});
+
+	it('allows editing a start date in while leaving the end date alone', () => {
+		const r = read({ id: 1, outcome: 'open', startDate: '2026-01-01' });
+		const result = editRead(r, { startDate: '2026-01-02' });
+		expect(result).toEqual({
+			ok: true,
+			mutation: { kind: 'update', id: 1, patch: { startDate: '2026-01-02' } }
+		});
+	});
+});
+
+describe('deleteRead', () => {
+	it('deletes the Read and unlinks its annotations', () => {
+		const r = read({ id: 9, outcome: 'finished', endDate: TODAY });
+		expect(deleteRead(r)).toEqual({ kind: 'delete', id: 9, unlinkReadId: 9 });
 	});
 });
 

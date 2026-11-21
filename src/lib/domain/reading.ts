@@ -34,9 +34,10 @@ export interface Read {
 /** A Read to insert; the database assigns the id. */
 export type NewRead = Omit<Read, 'id'>;
 
-/** Fields changed when finishing or abandoning the open Read. */
+/** Fields changed when finishing, abandoning, or editing a Read. */
 export interface ReadPatch {
 	outcome?: Outcome;
+	startDate?: string | null;
 	endDate?: string | null;
 	rating?: number | null;
 	readBefore?: boolean;
@@ -58,8 +59,17 @@ export type OpResult = { ok: true; mutation: Mutation } | { ok: false; error: st
 
 /** Optional outcome details when finishing or abandoning a Read. */
 export interface CloseOptions {
+	/** End date to record; defaults to today when omitted. */
+	endDate?: string;
 	rating?: number | null;
 	readBefore?: boolean;
+}
+
+/** Fields the reader can edit on an existing Read. */
+export interface EditReadFields {
+	startDate?: string | null;
+	endDate?: string | null;
+	rating?: number | null;
 }
 
 /** The single open Read, or null when the Book is not currently being read. */
@@ -168,7 +178,7 @@ function close(
 			id: open.id,
 			patch: {
 				outcome,
-				endDate: today,
+				endDate: opts.endDate ?? today,
 				rating: opts.rating ?? null,
 				readBefore: opts.readBefore ?? open.readBefore
 			}
@@ -223,4 +233,36 @@ export function revertToWantToRead(reads: readonly Read[]): OpResult {
 		return { ok: false, error: 'Only a Book that is Reading can go back to Want to read.' };
 	}
 	return { ok: true, mutation: { kind: 'delete', id: open.id, unlinkReadId: open.id } };
+}
+
+/**
+ * Edit a Read's dates and rating. Only the fields present in `fields` change;
+ * the resulting start and end dates must not be out of order. Refused for an
+ * out-of-range rating or an end date earlier than the start date.
+ */
+export function editRead(read: Read, fields: EditReadFields): OpResult {
+	const rErr = ratingError(fields.rating);
+	if (rErr) return { ok: false, error: rErr };
+
+	const patch: ReadPatch = {};
+	if ('startDate' in fields) patch.startDate = fields.startDate ?? null;
+	if ('endDate' in fields) patch.endDate = fields.endDate ?? null;
+	if ('rating' in fields) patch.rating = fields.rating ?? null;
+
+	const startDate = 'startDate' in fields ? (fields.startDate ?? null) : read.startDate;
+	const endDate = 'endDate' in fields ? (fields.endDate ?? null) : read.endDate;
+	if (startDate !== null && endDate !== null && endDate < startDate) {
+		return { ok: false, error: 'The end date cannot be before the start date.' };
+	}
+
+	return { ok: true, mutation: { kind: 'update', id: read.id, patch } };
+}
+
+/**
+ * Delete a Read. Its linked Quotes and Notes are unlinked, not deleted — they
+ * stay on the Book. Deleting a Read can change the Book's Reading Status; see
+ * {@link statusAfterDeleting}.
+ */
+export function deleteRead(read: Read): Mutation {
+	return { kind: 'delete', id: read.id, unlinkReadId: read.id };
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatDay, ratingStars } from './format';
+import { deleteReadMessage, formatDay, ratingStars } from './format';
 
 describe('formatDay', () => {
 	it('returns an empty string for null, undefined, or empty', () => {
@@ -36,5 +36,53 @@ describe('ratingStars', () => {
 	it('clamps out-of-range values', () => {
 		expect(ratingStars(9)).toBe('★★★★★');
 		expect(ratingStars(0)).toBe('☆☆☆☆☆');
+	});
+});
+
+describe('deleteReadMessage', () => {
+	it('just asks to delete when the Reading Status will not change', () => {
+		const msg = deleteReadMessage({
+			title: 'Dune',
+			currentStatus: 'Finished',
+			statusAfterDelete: 'Finished',
+			annotationCount: 2
+		});
+		expect(msg).toContain('Delete this Read');
+		expect(msg).not.toContain('move to');
+	});
+
+	it('warns about a move to Want to read and that annotations stay', () => {
+		const msg = deleteReadMessage({
+			title: 'Dune',
+			currentStatus: 'Finished',
+			statusAfterDelete: 'Want to read',
+			annotationCount: 3
+		});
+		expect(msg).toContain('Dune will move to Want to read.');
+		expect(msg).toContain(
+			'Its 3 Quotes and Notes stay, but you can’t add new ones until you start it again.'
+		);
+	});
+
+	it('warns about the move to Want to read without the annotation clause when there are none', () => {
+		const msg = deleteReadMessage({
+			title: 'Dune',
+			currentStatus: 'Reading',
+			statusAfterDelete: 'Want to read',
+			annotationCount: 0
+		});
+		expect(msg).toContain('Dune will move to Want to read.');
+		expect(msg).not.toContain('stay');
+	});
+
+	it('names a move to another status without the Want to read clause', () => {
+		const msg = deleteReadMessage({
+			title: 'Dune',
+			currentStatus: 'Reading',
+			statusAfterDelete: 'Finished',
+			annotationCount: 1
+		});
+		expect(msg).toContain('Dune will move to Finished.');
+		expect(msg).not.toContain('start it again');
 	});
 });

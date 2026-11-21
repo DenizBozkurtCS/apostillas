@@ -1,6 +1,6 @@
 # Book page with Read actions and metadata editing
 
-Status: ready-for-agent
+Status: closed
 Blocked by: 05
 
 ## Acceptance criteria
@@ -15,3 +15,7 @@ Blocked by: 05
 - Book metadata (title, authors, Edition fields, description, "why") is editable
 - Cover can be changed: upload an image, or (for Books with an Open Library work ID) pick from the covers of the work's editions. The new cover replaces the stored file in the data folder, using the same validation as other covers (JPEG/PNG/GIF/WebP, max 5 MB, provider cover hosts only). Reason: Open Library's work-level cover is sometimes a title-page scan (e.g. "Models" by Mark Manson, work OL19888731W), while an edition has the real cover.
 - Delete Book, with a confirmation stating that its Reads, Quotes, and Notes will be deleted
+
+## Comments
+
+**RALPH (2026-11-21):** Added the Book page at /books/[id] with Read actions, Read history editing, metadata editing, cover changing, and Book deletion.
