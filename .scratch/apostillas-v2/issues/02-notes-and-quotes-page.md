@@ -1,6 +1,6 @@
 # Notes & Quotes page and the Markdown editor
 
-Status: ready-for-human
+Status: closed
 Blocked by: 01
 
 One page in the navbar for everything you have written, plus a real Markdown editor for Notes.
@@ -35,3 +35,5 @@ One page in the navbar for everything you have written, plus a real Markdown edi
 - The editor follows light and dark mode and the app's accent.
 
 ## Comments
+
+**RALPH (2026-11-21):** Done: Notes & Quotes page, live search, EasyMDE editor
