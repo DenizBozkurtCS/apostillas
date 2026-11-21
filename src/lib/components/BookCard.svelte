@@ -7,6 +7,7 @@
 -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import BookCover from './BookCover.svelte';
 
 	let {
 		bookId,
@@ -28,14 +29,7 @@
 <li class="card">
 	<a class="link" href={`/books/${bookId}`} title={`${title} — ${byline}`}>
 		<span class="visually-hidden">{title}, {byline}</span>
-		{#if coverPath}
-			<img class="cover" src={`/${coverPath}`} alt="" width="200" height="300" loading="lazy" />
-		{:else}
-			<div class="cover cover--none" aria-hidden="true">
-				<span class="placeholder-title">{title}</span>
-				<span class="placeholder-author">{byline}</span>
-			</div>
-		{/if}
+		<BookCover {title} {authors} {coverPath} />
 	</a>
 	{#if detail}
 		<div class="detail">{@render detail()}</div>
@@ -56,49 +50,11 @@
 		color: inherit;
 		text-decoration: none;
 	}
-	.cover {
-		display: block;
-		width: 100%;
-		height: auto;
-		aspect-ratio: 2 / 3;
-		object-fit: cover;
-		border-radius: var(--radius-sm);
-		background: var(--surface);
-		box-shadow:
-			0 0 0 1px var(--border),
-			0 2px 6px rgb(0 0 0 / 0.08);
-		transition:
-			transform 0.15s,
-			box-shadow 0.15s;
-	}
-	.link:hover .cover {
+	.link:hover :global(.cover) {
 		transform: translateY(-2px);
 		box-shadow:
 			0 0 0 1px var(--border-strong),
 			0 8px 20px rgb(0 0 0 / 0.14);
-	}
-	.cover--none {
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-		gap: 0.4rem;
-		padding: 0.9rem;
-		background: linear-gradient(160deg, var(--surface), var(--accent-soft));
-		overflow: hidden;
-	}
-	.placeholder-title {
-		font-weight: 650;
-		font-size: 0.95rem;
-		line-height: 1.25;
-		display: -webkit-box;
-		-webkit-line-clamp: 5;
-		line-clamp: 5;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-	}
-	.placeholder-author {
-		font-size: 0.8rem;
-		color: var(--text-muted);
 	}
 	.detail {
 		margin-top: 0.45rem;

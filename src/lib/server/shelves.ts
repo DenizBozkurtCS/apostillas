@@ -4,7 +4,7 @@
  * Shelves with their Books, in the reader's order.
  */
 
-import { and, asc, eq, gt, lt, desc, min, max, ne } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, lt, desc, min, max, ne } from 'drizzle-orm';
 import { currentRating } from '../domain/lists';
 import { readingStatus } from '../domain/reading';
 import { MAX_SHELF_DESCRIPTION, checkShelfName } from '../domain/shelves';
@@ -153,4 +153,35 @@ export function removeBookFromShelf(db: Db, shelfId: number, bookId: number): vo
 	db.delete(shelfBooks)
 		.where(and(eq(shelfBooks.shelfId, shelfId), eq(shelfBooks.bookId, bookId)))
 		.run();
+}
+
+/**
+ * Save Arrange mode in one go: take `removed` Books off the Shelf, then put the
+ * rest in `order`. Ids not on the Shelf are ignored; Books on the Shelf that
+ * `order` leaves out keep their place after the ordered ones.
+ */
+export function arrangeShelf(db: Db, shelfId: number, order: number[], removed: number[]): void {
+	db.transaction((tx) => {
+		if (removed.length > 0) {
+			tx.delete(shelfBooks)
+				.where(and(eq(shelfBooks.shelfId, shelfId), inArray(shelfBooks.bookId, removed)))
+				.run();
+		}
+		const current = tx
+			.select({ bookId: shelfBooks.bookId })
+			.from(shelfBooks)
+			.where(eq(shelfBooks.shelfId, shelfId))
+			.orderBy(asc(shelfBooks.position), asc(shelfBooks.bookId))
+			.all()
+			.map((r) => r.bookId);
+		const onShelf = new Set(current);
+		const ordered = [...new Set(order)].filter((id) => onShelf.has(id));
+		const rest = current.filter((id) => !ordered.includes(id));
+		[...ordered, ...rest].forEach((bookId, i) => {
+			tx.update(shelfBooks)
+				.set({ position: i + 1 })
+				.where(and(eq(shelfBooks.shelfId, shelfId), eq(shelfBooks.bookId, bookId)))
+				.run();
+		});
+	});
 }

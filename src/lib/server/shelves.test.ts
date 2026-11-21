@@ -7,6 +7,7 @@ import * as schema from './db/schema';
 import { books, reads, shelfBooks } from './db/schema';
 import {
 	addBookToShelf,
+	arrangeShelf,
 	createShelf,
 	deleteShelf,
 	loadBookcase,
@@ -123,5 +124,22 @@ describe('Shelves', () => {
 		db.delete(books).where(eq(books.id, dune)).run();
 		expect(db.select().from(shelfBooks).all()).toHaveLength(1);
 		expect(loadShelf(db, 't')!.books.map((b) => b.title)).toEqual(['Emma']);
+	});
+
+	it('arranges a Shelf: removes, reorders, ignores strangers, keeps the left-out after', () => {
+		const db = testDb();
+		createShelf(db, 'S');
+		createShelf(db, 'T');
+		const s = idOf(db, 's');
+		const [a, b, c, d, stranger] = ['A', 'B', 'C', 'D', 'X'].map((t) => book(db, t));
+		for (const id of [a, b, c, d]) addBookToShelf(db, s, id);
+		addBookToShelf(db, idOf(db, 't'), stranger);
+
+		arrangeShelf(db, s, [c, stranger, a, a], [b]);
+		expect(loadShelf(db, 's')!.books.map((x) => x.title)).toEqual(['C', 'A', 'D']);
+		expect(loadShelf(db, 't')!.books.map((x) => x.title)).toEqual(['X']);
+
+		addBookToShelf(db, s, b);
+		expect(loadShelf(db, 's')!.books.map((x) => x.title)).toEqual(['C', 'A', 'D', 'B']);
 	});
 });
