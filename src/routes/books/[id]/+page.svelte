@@ -223,9 +223,6 @@
 				{#if book.isbn}<span>ISBN {book.isbn}</span>{/if}
 				<span>Added {formatDay(book.createdAt)}</span>
 			</p>
-			{#if book.whyRecommended}
-				<p class="why">“{book.whyRecommended}”</p>
-			{/if}
 
 		</div>
 
@@ -544,10 +541,6 @@
 			<span>Description</span>
 			<textarea name="description" rows="5">{book.description}</textarea>
 		</label>
-		<label class="field">
-			<span>Why / recommended by</span>
-			<input name="whyRecommended" type="text" value={book.whyRecommended ?? ''} />
-		</label>
 		<button type="submit" class="primary">Save details</button>
 	</form>
 </Dialog>
@@ -617,7 +610,7 @@
 		{/if}
 		<p class="dialog-text">
 			Replace the title, authors, description, ISBN and page count with Open Library's current data.
-			“Why / recommended by” and the cover stay as they are.
+			The cover stays as it is.
 		</p>
 		<div class="form-actions">
 			<button type="submit" class="primary">Sync details</button>
@@ -804,11 +797,6 @@
 	}
 	.facts span {
 		white-space: nowrap;
-	}
-	.why {
-		margin: 0.25rem 0 0;
-		font-style: italic;
-		color: var(--text-muted);
 	}
 	/* The action panel: one rectangle of status switches, stars and buttons. */
 	.panel-actions {

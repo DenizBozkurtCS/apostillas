@@ -30,8 +30,6 @@ export interface AddBookDeps {
 
 export interface AddBookInput {
 	result: BookSearchResult;
-	/** Optional free-text "why / recommended by". */
-	whyRecommended?: string | null;
 }
 
 /** The added or already-existing Book, and whether this call created it. */
@@ -67,7 +65,6 @@ export async function addBook(deps: AddBookDeps, input: AddBookInput): Promise<A
 		authors: JSON.stringify(result.authors),
 		description,
 		workId,
-		whyRecommended: blankToNull(input.whyRecommended),
 		isbn: result.isbn,
 		pageCount: result.pageCount
 	});
@@ -86,8 +83,6 @@ export interface ManualBookInput {
 	isbn?: string | null;
 	pageCount?: number | null;
 	description?: string | null;
-	/** Optional free-text "why / recommended by". */
-	whyRecommended?: string | null;
 	/** Raw bytes of an uploaded cover image, if any; ignored unless it is an accepted image. */
 	cover?: Uint8Array | null;
 }
@@ -110,7 +105,6 @@ export function addBookManually(deps: AddBookDeps, input: ManualBookInput): AddB
 		title,
 		authors: JSON.stringify(authors),
 		description: input.description?.trim() ?? '',
-		whyRecommended: blankToNull(input.whyRecommended),
 		isbn: blankToNull(input.isbn),
 		pageCount: input.pageCount ?? null
 	});
@@ -121,7 +115,7 @@ export function addBookManually(deps: AddBookDeps, input: ManualBookInput): AddB
 }
 
 /** What makes two Books the same work. */
-interface BookIdentity {
+export interface BookIdentity {
 	workId: string | null;
 	title: string;
 	authors: string[];
@@ -132,7 +126,7 @@ interface BookIdentity {
  * Library work ID wins; otherwise a normalised title + authors match against
  * every Book, so search-added and hand-entered Books dedupe against each other.
  */
-function findExistingBook(db: Db, identity: BookIdentity): number | null {
+export function findExistingBook(db: Db, identity: BookIdentity): number | null {
 	if (identity.workId) {
 		const byWork = db
 			.select({ id: books.id })

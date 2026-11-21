@@ -4,6 +4,7 @@ import {
 	fetchOpenLibraryWork,
 	fetchWorkEditionCovers,
 	searchBooks,
+	withDescriptions,
 	type BookSearchResult
 } from './booksearch';
 
@@ -132,6 +133,37 @@ describe('fetchOpenLibraryDescription', () => {
 		expect(await fetchOpenLibraryDescription('/works/OL1W', fetchImpl)).toBe('');
 		expect(await fetchOpenLibraryDescription('/authors/OL1A', fetchImpl)).toBe('');
 		expect(calls).toHaveLength(1);
+	});
+});
+
+describe('withDescriptions', () => {
+	const r = (over: Partial<BookSearchResult>): BookSearchResult => ({
+		source: 'open-library',
+		workId: '/works/OL1W',
+		title: 'T',
+		authors: [],
+		firstPublishYear: null,
+		coverUrl: null,
+		isbn: null,
+		pageCount: null,
+		description: '',
+		...over
+	});
+
+	it('fills in missing Open Library descriptions and leaves the rest', async () => {
+		const { fetchImpl, calls } = stubFetch({ [OPEN_LIBRARY]: { description: 'Spice.' } });
+		const out = await withDescriptions(
+			[r({}), r({ workId: '/works/OL2W', description: 'Kept.' }), r({ source: 'google-books', workId: null })],
+			fetchImpl
+		);
+		expect(out.map((x) => x.description)).toEqual(['Spice.', 'Kept.', '']);
+		expect(calls).toEqual(['https://openlibrary.org/works/OL1W.json']);
+	});
+
+	it('gives up on a slow lookup after the time limit', async () => {
+		const never = vi.fn(() => new Promise<Response>(() => {}));
+		const out = await withDescriptions([r({})], never, 20);
+		expect(out[0].description).toBe('');
 	});
 });
 

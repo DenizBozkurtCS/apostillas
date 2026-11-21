@@ -158,8 +158,7 @@ describe('updateBookMetadata', () => {
 			authors: ['Frank Herbert', 'Brian Herbert'],
 			description: 'A sequel.',
 			isbn: '999',
-			pageCount: 256,
-			whyRecommended: 'A friend'
+			pageCount: 256
 		});
 		const row = db.select().from(books).where(eq(books.id, id)).get()!;
 		expect(row.title).toBe('Dune Messiah');
@@ -167,7 +166,6 @@ describe('updateBookMetadata', () => {
 		expect(row.description).toBe('A sequel.');
 		expect(row.isbn).toBe('999');
 		expect(row.pageCount).toBe(256);
-		expect(row.whyRecommended).toBe('A friend');
 	});
 });
 
@@ -278,7 +276,6 @@ describe('syncBookMetadata', () => {
 			workId: '/works/OL45883W',
 			isbn: '111',
 			pageCount: 1,
-			whyRecommended: 'A friend',
 			coverPath: 'covers/1.jpg'
 		});
 
@@ -291,8 +288,7 @@ describe('syncBookMetadata', () => {
 		expect(row.description).toBe('A desert planet.');
 		expect(row.isbn).toBe('9780441013593');
 		expect(row.pageCount).toBe(412);
-		// The reader's own fields and the chosen cover are kept.
-		expect(row.whyRecommended).toBe('A friend');
+		// The chosen cover is kept.
 		expect(row.coverPath).toBe('covers/1.jpg');
 	});
 

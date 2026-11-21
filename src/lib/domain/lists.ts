@@ -17,8 +17,10 @@ export interface BookMeta {
 	authors: string[];
 	/** Path to the stored cover relative to the data folder, or null. */
 	coverPath: string | null;
-	/** Free-text "why / recommended by"; shown on Bookstack. */
-	whyRecommended: string | null;
+	/** The Book's description (may be empty). */
+	description: string;
+	/** ISBN of the recorded Edition, or null. */
+	isbn: string | null;
 	/** Date the Book was added (ISO). */
 	createdAt: string;
 	/** The Book's Tags (normalised names), alphabetically. */
@@ -41,9 +43,7 @@ export interface BaseItem {
 
 export type ReadingItem = BaseItem;
 
-export interface WantToReadItem extends BaseItem {
-	whyRecommended: string | null;
-}
+export type WantToReadItem = BaseItem;
 
 export interface FinishedItem extends BaseItem {
 	rating: number | null;
@@ -89,7 +89,7 @@ export function buildLists(input: readonly BookMeta[]): Lists {
 
 	return {
 		reading: on('reading').map(base),
-		wantToRead: on('want').map((b) => ({ ...base(b), whyRecommended: b.whyRecommended })),
+		wantToRead: on('want').map(base),
 		finished: on('finished').map((b) => ({ ...base(b), rating: b.rating, years: b.impressionYears }))
 	};
 }

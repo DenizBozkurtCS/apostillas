@@ -56,7 +56,7 @@ describe('addBook', () => {
 
 		const { bookId, created } = await addBook(
 			{ db, coversDir, fetchImpl },
-			{ result: result(), whyRecommended: 'Recommended by a friend' }
+			{ result: result() }
 		);
 
 		expect(created).toBe(true);
@@ -67,7 +67,6 @@ describe('addBook', () => {
 		expect(row.description).toBe('A desert planet.');
 		expect(row.isbn).toBe('0441013597');
 		expect(row.pageCount).toBe(412);
-		expect(row.whyRecommended).toBe('Recommended by a friend');
 
 		// The Add page sets the starting status separately (setInitialStatus).
 		expect([row.wantSince, row.readingSince, row.finishedSince, row.rating]).toEqual([null, null, null, null]);
@@ -208,7 +207,6 @@ describe('addBookManually', () => {
 				isbn: '0060512750',
 				pageCount: 387,
 				description: 'An ambiguous utopia.',
-				whyRecommended: 'A colleague',
 				cover: coverBytes
 			}
 		);
@@ -220,7 +218,6 @@ describe('addBookManually', () => {
 		expect(row.isbn).toBe('0060512750');
 		expect(row.pageCount).toBe(387);
 		expect(row.description).toBe('An ambiguous utopia.');
-		expect(row.whyRecommended).toBe('A colleague');
 		// No work ID: it did not come from a search provider.
 		expect(row.workId).toBeNull();
 

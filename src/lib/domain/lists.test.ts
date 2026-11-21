@@ -9,7 +9,8 @@ function book(id: number, statuses: Partial<Statuses>, over: Partial<BookMeta> =
 		title: `Book ${id}`,
 		authors: ['An Author'],
 		coverPath: null,
-		whyRecommended: null,
+		description: '',
+		isbn: null,
 		createdAt: '2026-01-01',
 		tags: [],
 		statuses: { ...NO_STATUSES, ...statuses },
@@ -50,9 +51,9 @@ describe('buildLists', () => {
 
 	it('carries the details each list shows', () => {
 		const lists = buildLists([
-			book(1, { want: T(1), finished: T(1) }, { whyRecommended: 'Ana', rating: 4.5, impressionYears: [2025], tags: ['scifi'] })
+			book(1, { want: T(1), finished: T(1) }, { rating: 4.5, impressionYears: [2025], tags: ['scifi'] })
 		]);
-		expect(lists.wantToRead[0]).toMatchObject({ whyRecommended: 'Ana', tags: ['scifi'] });
+		expect(lists.wantToRead[0]).toMatchObject({ tags: ['scifi'] });
 		expect(lists.finished[0]).toMatchObject({ rating: 4.5, years: [2025] });
 	});
 });

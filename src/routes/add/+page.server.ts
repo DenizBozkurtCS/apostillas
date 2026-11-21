@@ -1,17 +1,35 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '#lib/server/db';
 import { coversDir } from '#lib/server/paths';
-import { searchBooks, type BookSearchResult } from '#lib/server/booksearch';
-import { addBook, addBookManually, parseAuthors, type AddBookDeps } from '#lib/server/books';
+import { searchBooks, withDescriptions, type BookSearchResult } from '#lib/server/booksearch';
+import { addBook, addBookManually, findExistingBook, parseAuthors, type AddBookDeps } from '#lib/server/books';
+import { searchLibrary } from '#lib/server/lists';
 import { checkCover, MAX_COVER_BYTES } from '#lib/server/covers';
 import { parseAddChoice, setInitialStatus } from '#lib/server/book';
 import type { Actions, PageServerLoad } from './$types';
 
-/** Run the search when `?q=` is present so the page is bookmarkable. */
+/**
+ * Run the search when `?q=` is present so the page is bookmarkable. Books
+ * already in the library that match come first; a provider result that is one
+ * of them is left out, and one that is in the library but didn't match the
+ * words (e.g. found by ISBN) carries `existingId` so its cover just opens it.
+ */
 export const load: PageServerLoad = async ({ url }) => {
 	const q = url.searchParams.get('q')?.trim() ?? '';
-	const results = q ? await searchBooks(q) : [];
-	return { q, results, searched: q !== '' };
+	if (q === '') return { q, searched: false, library: [], results: [] };
+
+	const library = searchLibrary(db, q).map((b) => ({
+		id: b.id,
+		title: b.title,
+		authors: b.authors,
+		coverPath: b.coverPath,
+		description: b.description
+	}));
+	const shown = new Set(library.map((b) => b.id));
+	const results = (await withDescriptions(await searchBooks(q)))
+		.map((r) => ({ ...r, existingId: findExistingBook(db, r) }))
+		.filter((r) => r.existingId === null || !shown.has(r.existingId));
+	return { q, searched: true, library, results };
 };
 
 function addDeps(): AddBookDeps {
@@ -58,15 +76,9 @@ export const actions: Actions = {
 		const result = resultFromForm(form);
 		if (result.title === '') return fail(400, { error: 'This result has no title.' });
 
-		const { bookId, created } = await addBook(addDeps(), {
-			result,
-			whyRecommended: optional(form.get('whyRecommended'))
-		});
-		// Only a new Book gets a starting status; an existing one is just opened.
-		if (created) {
-			setInitialStatus(db, bookId, parseAddChoice(form));
-		}
-		// Open the Book (existing or just created) rather than a duplicate.
+		// Clicking a result's cover adds it with no Reading Status; the reader sets
+		// one on the Book page. An existing Book is just opened.
+		const { bookId } = await addBook(addDeps(), { result });
 		redirect(303, `/books/${bookId}`);
 	},
 
@@ -100,7 +112,6 @@ export const actions: Actions = {
 			isbn: optional(form.get('isbn')),
 			pageCount: optionalNumber(form.get('pageCount')),
 			description: optional(form.get('description')),
-			whyRecommended: optional(form.get('whyRecommended')),
 			cover: coverBytes
 		});
 		if (created) {

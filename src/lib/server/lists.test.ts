@@ -4,7 +4,7 @@ import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import * as schema from './db/schema';
 import { books, impressions } from './db/schema';
-import { getLists } from './lists';
+import { getLists, searchLibrary } from './lists';
 
 function testDb(): BetterSQLite3Database<typeof schema> {
 	const sqlite = new Database(':memory:');
@@ -28,14 +28,14 @@ function book(db: ReturnType<typeof testDb>, values: Partial<typeof books.$infer
 describe('getLists', () => {
 	it('puts a Book on every list whose status it has, and on none without one', () => {
 		const db = testDb();
-		const want = book(db, { title: 'Want One', whyRecommended: 'A friend', wantSince: T1 });
+		const want = book(db, { title: 'Want One', wantSince: T1 });
 		const both = book(db, { title: 'Reread', coverPath: 'covers/2.jpg', readingSince: T1, finishedSince: T1, rating: 5 });
 		book(db, { title: 'No status' });
 
 		const lists = getLists(db);
 
 		expect(lists.wantToRead.map((i) => i.bookId)).toEqual([want]);
-		expect(lists.wantToRead[0]).toMatchObject({ title: 'Want One', authors: ['A'], whyRecommended: 'A friend' });
+		expect(lists.wantToRead[0]).toMatchObject({ title: 'Want One', authors: ['A'] });
 		expect(lists.reading.map((i) => i.bookId)).toEqual([both]);
 		expect(lists.reading[0].coverPath).toBe('covers/2.jpg');
 		expect(lists.finished).toEqual([expect.objectContaining({ bookId: both, rating: 5, years: [] })]);
@@ -55,5 +55,20 @@ describe('getLists', () => {
 			db.insert(impressions).values({ bookId: id, date }).run();
 		}
 		expect(getLists(db).finished[0].years.sort()).toEqual([2025, 2026]);
+	});
+});
+
+describe('searchLibrary', () => {
+	it('matches every word in the title or authors, ignoring case and accents, or the ISBN', () => {
+		const db = testDb();
+		book(db, { title: 'Cien años de soledad', authors: JSON.stringify(['Gabriel García Márquez']) });
+		book(db, { title: 'Dune', authors: JSON.stringify(['Frank Herbert']), isbn: '978-0441172719' });
+		book(db, { title: 'Emma', authors: JSON.stringify(['Jane Austen']) });
+		const titles = (q: string) => searchLibrary(db, q).map((b) => b.title);
+		expect(titles('garcia ANOS')).toEqual(['Cien años de soledad']);
+		expect(titles('herbert')).toEqual(['Dune']);
+		expect(titles('9780441172719')).toEqual(['Dune']);
+		expect(titles('dune austen')).toEqual([]);
+		expect(titles('  ')).toEqual([]);
 	});
 });

@@ -14,8 +14,6 @@ export const books = sqliteTable('books', {
 	description: text('description').notNull().default(''),
 	/** Open Library work ID, when the Book came from a search. */
 	workId: text('work_id'),
-	/** Free-text "why / recommended by" for a Want to read Book. */
-	whyRecommended: text('why_recommended'),
 	// Edition fields (all optional, ADR-0002).
 	isbn: text('isbn'),
 	pageCount: integer('page_count'),

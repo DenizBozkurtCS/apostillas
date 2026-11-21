@@ -6,6 +6,7 @@
  */
 
 import { buildLists, type BookMeta, type Lists } from '../domain/lists';
+import { filterItems, NO_FILTER } from '../domain/listView';
 import type { Db } from './books';
 import { parseAuthors } from './books';
 import { bookTags, books, impressions } from './db/schema';
@@ -40,11 +41,33 @@ export function loadLibrary(db: Db): BookMeta[] {
 		title: b.title,
 		authors: parseAuthors(b.authors),
 		coverPath: b.coverPath,
-		whyRecommended: b.whyRecommended,
+		description: b.description,
+		isbn: b.isbn,
 		createdAt: b.createdAt,
 		tags: (tagsByBook.get(b.id) ?? []).sort(),
 		statuses: { want: b.wantSince, reading: b.readingSince, finished: b.finishedSince },
 		rating: b.rating,
 		impressionYears: [...new Set((yearsByBook.get(b.id) ?? []).filter((y) => y > 0))]
 	}));
+}
+
+/**
+ * Books in the library that match a search: every word of `q` in the title or
+ * authors (ignoring case and accents), or the same ISBN. By title.
+ */
+export function searchLibrary(db: Db, q: string): BookMeta[] {
+	const query = q.trim();
+	if (query === '') return [];
+	const library = loadLibrary(db);
+	const digits = query.replace(/[\s-]/g, '');
+	const byText = new Set(
+		filterItems(
+			library.map((b) => ({ ...b, bookId: b.id })),
+			{ ...NO_FILTER, text: query }
+		).map((b) => b.id)
+	);
+	const isbn = /^\d{9,13}X?$/i.test(digits) ? digits : null;
+	return library
+		.filter((b) => byText.has(b.id) || (isbn !== null && b.isbn?.replace(/-/g, '') === isbn))
+		.sort((a, b) => a.title.localeCompare(b.title));
 }

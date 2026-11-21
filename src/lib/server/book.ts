@@ -26,7 +26,6 @@ export interface BookRow {
 	authors: string[];
 	description: string;
 	workId: string | null;
-	whyRecommended: string | null;
 	isbn: string | null;
 	pageCount: number | null;
 	coverPath: string | null;
@@ -58,7 +57,6 @@ export function loadBookDetail(db: Db, id: number): BookDetail | null {
 			authors: parseAuthors(b.authors),
 			description: b.description,
 			workId: b.workId,
-			whyRecommended: b.whyRecommended,
 			isbn: b.isbn,
 			pageCount: b.pageCount,
 			coverPath: b.coverPath,
@@ -144,14 +142,13 @@ export function setInitialStatus(db: Db, bookId: number, choice: AddChoice, now 
 	if (choice.rating !== null) rateBook(db, bookId, choice.rating, now);
 }
 
-/** The editable metadata of a Book (title, authors, Edition fields, "why"). */
+/** The editable metadata of a Book (title, authors, description, Edition fields). */
 export interface BookMetaInput {
 	title: string;
 	authors: string[];
 	description: string;
 	isbn: string | null;
 	pageCount: number | null;
-	whyRecommended: string | null;
 }
 
 /** Overwrite a Book's editable metadata. The cover, statuses and Rating are untouched. */
@@ -163,8 +160,7 @@ export function updateBookMetadata(db: Db, id: number, input: BookMetaInput): vo
 			authors: JSON.stringify(input.authors),
 			description: input.description,
 			isbn: input.isbn,
-			pageCount: input.pageCount,
-			whyRecommended: input.whyRecommended
+			pageCount: input.pageCount
 		})
 		.where(eq(books.id, id))
 		.run();
@@ -176,8 +172,8 @@ export type WorkLookup = (workId: string) => Promise<BookSearchResult | null>;
 /**
  * Re-copy a Book's metadata from its Open Library work, undoing local edits to
  * title, authors, description, ISBN and page count. Fields Open Library has no
- * value for keep their current value. "Why / recommended by" and the cover
- * are the reader's own choices and are never touched.
+ * value for keep their current value. The cover is the reader's own choice
+ * and is never touched.
  */
 export async function syncBookMetadata(
 	db: Db,

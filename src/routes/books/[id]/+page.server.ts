@@ -161,8 +161,7 @@ export const actions: Actions = {
 			authors,
 			description: optional(form.get('description')) ?? '',
 			isbn: optional(form.get('isbn')),
-			pageCount: optionalNumber(form.get('pageCount')),
-			whyRecommended: optional(form.get('whyRecommended'))
+			pageCount: optionalNumber(form.get('pageCount'))
 		});
 	},
 

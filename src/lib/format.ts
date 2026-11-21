@@ -36,3 +36,19 @@ export function formatRating(rating: number | null | undefined): string {
 	const half = rating - whole >= 0.5;
 	return (whole > 0 ? String(whole) : '') + (half ? '½' : '');
 }
+
+/**
+ * A provider description tidied for a short preview: Markdown links become
+ * their text; bold markers, anything after a `----` divider (Open Library's
+ * source notes and footnotes) and footnote references are dropped; whitespace
+ * is collapsed. The full text is kept on the Book; this is only for display.
+ */
+export function previewDescription(text: string): string {
+	return text
+		.split(/\n-{3,}/)[0]
+		.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+		.replace(/\[([^\]]+)\]\[\d+\]/g, '$1')
+		.replace(/(\*\*|__)(.+?)\1/g, '$2')
+		.replace(/\s+/g, ' ')
+		.trim();
+}

@@ -114,6 +114,29 @@ export async function fetchOpenLibraryDescription(
 	}
 }
 
+/**
+ * Fill in the descriptions of Open Library results, which search does not
+ * return, by fetching every work at once. Best-effort and bounded: a lookup
+ * that fails or takes longer than `timeoutMs` leaves that description empty.
+ */
+export async function withDescriptions(
+	results: readonly BookSearchResult[],
+	fetchImpl: FetchLike = fetch,
+	timeoutMs = 2500
+): Promise<BookSearchResult[]> {
+	const timeout = () => new Promise<string>((resolve) => setTimeout(() => resolve(''), timeoutMs));
+	return Promise.all(
+		results.map(async (r) => {
+			if (r.description !== '' || !r.workId) return r;
+			const description = await Promise.race([
+				fetchOpenLibraryDescription(r.workId, fetchImpl),
+				timeout()
+			]);
+			return { ...r, description };
+		})
+	);
+}
+
 /** A cover offered by one of a work's editions, for the cover picker. */
 export interface EditionCover {
 	/** Absolute URL on the Open Library cover host. */
