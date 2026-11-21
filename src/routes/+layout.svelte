@@ -4,8 +4,12 @@
 -->
 <script lang="ts">
 	import { page } from '$app/state';
+	import type { LayoutData } from './$types';
 
-	let { children } = $props();
+	let { children, data }: { children: import('svelte').Snippet; data: LayoutData } = $props();
+
+	// The login page is the one screen outside the shell: no nav, no log out.
+	const onLogin = $derived(page.url.pathname === '/login');
 
 	const lists = [
 		{ href: '/', label: 'Reading' },
@@ -19,18 +23,25 @@
 	}
 </script>
 
-<header>
-	<a class="brand" href="/">apostillas</a>
-	<nav>
-		{#each lists as list (list.href)}
-			<a href={list.href} aria-current={isActive(list.href) ? 'page' : undefined}>
-				{list.label}
-			</a>
-		{/each}
-		<a href="/search" aria-current={isActive('/search') ? 'page' : undefined}>Search</a>
-		<a class="add" href="/add">Add book</a>
-	</nav>
-</header>
+{#if !onLogin}
+	<header>
+		<a class="brand" href="/">apostillas</a>
+		<nav>
+			{#each lists as list (list.href)}
+				<a href={list.href} aria-current={isActive(list.href) ? 'page' : undefined}>
+					{list.label}
+				</a>
+			{/each}
+			<a href="/search" aria-current={isActive('/search') ? 'page' : undefined}>Search</a>
+			<a class="add" href="/add">Add book</a>
+			{#if data.gated}
+				<form method="POST" action="/logout" class="logout">
+					<button type="submit">Log out</button>
+				</form>
+			{/if}
+		</nav>
+	</header>
+{/if}
 
 <main>
 	{@render children()}
@@ -80,6 +91,20 @@
 		margin-left: auto;
 		font-weight: 600;
 		color: #1a56db;
+	}
+	.logout {
+		margin: 0;
+	}
+	.logout button {
+		background: none;
+		border: none;
+		padding: 0;
+		font: inherit;
+		color: #555;
+		cursor: pointer;
+	}
+	.logout button:hover {
+		color: #222;
 	}
 	main {
 		max-width: 48rem;
